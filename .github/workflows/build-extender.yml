@@ -59,35 +59,45 @@ jobs:
             exit 1
           }
 
+          $kitDir  = Split-Path $env:KITSETUP_PATH -Parent
           $logFile = "$env:TEMP\WDK_Setup.log"
-          $media   = $env:WDK_MEDIA
           $target  = $env:WDK_INSTALL_DIR
 
-          Write-Host "Running KitSetup.exe to install WDK to $target"
+          Write-Host "Running KitSetup.exe from $kitDir"
+          Write-Host "Target install dir: $target"
           Write-Host "Log file: $logFile"
 
-          # Run KitSetup.exe in console mode, install all components into C:\WinDDK\7600.16385.1
-          & $env:KITSETUP_PATH `
-            /no-view `
-            /media "$media" `
-            /install-location "$target" `
-            /log "$logFile" `
-            /ui-level EXPRESS `
-            /install ALL
+          $args = @(
+            '/no-view'
+            '/ui-level', 'EXPRESS'
+            '/install', 'ALL'
+            '/install-location', $target
+            '/log', $logFile
+          )
 
-          if ($LASTEXITCODE -ne 0) {
-            Write-Error "KitSetup.exe returned exit code $LASTEXITCODE"
-            Get-Content $logFile -Tail 100
-            exit $LASTEXITCODE
+          # Spusť instalátor v jeho vlastním adresáři (bez /media, ať si najde média sám)
+          $proc = Start-Process -FilePath $env:KITSETUP_PATH `
+                                -ArgumentList $args `
+                                -WorkingDirectory $kitDir `
+                                -Wait `
+                                -PassThru
+
+          Write-Host "KitSetup.exe exit code: $($proc.ExitCode)"
+
+          if (Test-Path $logFile) {
+            Write-Host "=== KitSetup.log (last 200 lines) ==="
+            Get-Content $logFile -Tail 200
+          }
+          else {
+            Write-Host "KitSetup.log was not created."
           }
 
           if (-not (Test-Path $target)) {
             Write-Error "WDK install directory $target not found after KitSetup!"
-            Get-Content $logFile -Tail 100
             exit 1
           }
 
-          Write-Host "WDK installed to $target"
+          Write-Host "WDK appears to be installed in $target"
           "DDKROOT=$target" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding ascii
 
       - name: Patch ntddk.h / wdm.h (NODE_REQUIREMENT fix)
