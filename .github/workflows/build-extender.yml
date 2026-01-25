@@ -1,0 +1,184 @@
+name: Build NTOSKRNL Extender (WDK 7.1 install)
+
+on:
+  push:
+    branches:
+      - auto-build
+  pull_request:
+    branches:
+      - auto-build
+
+jobs:
+  build-extender:
+    runs-on: windows-latest
+
+    env:
+      WDK_ISO_URL: https://github.com/KunYi/WDK_DDKArchive/releases/download/WDK_v7.1.0/GRMWDK_EN_7600_1.ISO
+      WDK_INSTALL_DIR: C:\WinDDK\7600.16385.1
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download WDK 7.1 ISO
+        shell: pwsh
+        run: |
+          $isoPath = "$env:TEMP\wdk71.iso"
+          Write-Host "Downloading WDK ISO to $isoPath"
+          Invoke-WebRequest -Uri $env:WDK_ISO_URL -OutFile $isoPath
+          Write-Host "Download finished"
+
+      - name: Extract WDK ISO
+        shell: pwsh
+        run: |
+          $isoPath  = "$env:TEMP\wdk71.iso"
+          $extract  = "$env:TEMP\wdk71"
+          New-Item -ItemType Directory -Force -Path $extract | Out-Null
+
+          Write-Host "Extracting ISO to $extract"
+          7z.exe x $isoPath "-o$extract" -y | Out-Null
+
+          # Find KitSetup.exe
+          $kitSetup = Get-ChildItem -Path $extract -Recurse -Filter "KitSetup.exe" |
+            Select-Object -First 1
+
+          if (-not $kitSetup) {
+            Write-Error "KitSetup.exe not found in extracted ISO!"
+            exit 1
+          }
+
+          Write-Host "Found KitSetup.exe at: $($kitSetup.FullName)"
+          "WDK_MEDIA=$extract" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding ascii
+          "KITSETUP_PATH=$($kitSetup.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding ascii
+
+      - name: Install WDK 7.1 (silent console)
+        shell: pwsh
+        run: |
+          if (-not $env:KITSETUP_PATH) {
+            Write-Error "KITSETUP_PATH not set"
+            exit 1
+          }
+
+          $logFile = "$env:TEMP\WDK_Setup.log"
+          $media   = $env:WDK_MEDIA
+          $target  = $env:WDK_INSTALL_DIR
+
+          Write-Host "Running KitSetup.exe to install WDK to $target"
+          Write-Host "Log file: $logFile"
+
+          # Run KitSetup.exe in console mode, install all components into C:\WinDDK\7600.16385.1
+          & $env:KITSETUP_PATH `
+            /no-view `
+            /media "$media" `
+            /install-location "$target" `
+            /log "$logFile" `
+            /ui-level EXPRESS `
+            /install ALL
+
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "KitSetup.exe returned exit code $LASTEXITCODE"
+            Get-Content $logFile -Tail 100
+            exit $LASTEXITCODE
+          }
+
+          if (-not (Test-Path $target)) {
+            Write-Error "WDK install directory $target not found after KitSetup!"
+            Get-Content $logFile -Tail 100
+            exit 1
+          }
+
+          Write-Host "WDK installed to $target"
+          "DDKROOT=$target" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding ascii
+
+      - name: Patch ntddk.h / wdm.h (NODE_REQUIREMENT fix)
+        shell: pwsh
+        run: |
+          $ddkRoot = $env:DDKROOT
+          if (-not $ddkRoot) {
+            Write-Error "DDKROOT is not set"
+            exit 1
+          }
+
+          $headers = @(
+            Join-Path $ddkRoot "inc\ddk\ntddk.h",
+            Join-Path $ddkRoot "inc\ddk\wdm.h"
+          )
+
+          foreach ($h in $headers) {
+            if (-not (Test-Path $h)) {
+              Write-Error "Header not found: $h"
+              exit 1
+            }
+
+            Write-Host "Patching $h"
+            $text = Get-Content $h -Raw
+
+            # Replace NTDDI_WIN2K with NTDDI_VISTA in the NODE_REQUIREMENT typedef guard
+            $text = $text -replace 'NTDDI_WIN2K', 'NTDDI_VISTA'
+
+            Set-Content -Path $h -Value $text -Encoding ascii
+          }
+
+      - name: Build ntoskrn8.sys (fre x86 WXP)
+        shell: cmd
+        run: |
+          echo Using WDK at %DDKROOT%
+          if "%DDKROOT%"=="" (
+            echo DDKROOT is not set
+            exit /b 1
+          )
+
+          rem Initialize WDK 7.1 build environment (free, x86, Windows XP, no OACR)
+          call "%DDKROOT%\bin\setenv.bat" "%DDKROOT%" fre x86 WXP no_oacr
+
+          rem Change to repo root
+          cd /d "%GITHUB_WORKSPACE%"
+
+          rem Classic DDK build
+          echo Running BUILD...
+          rem build -ceZ
+          bld
+
+      - name: Collect built SYS
+        shell: pwsh
+        run: |
+          $root = $env:GITHUB_WORKSPACE
+
+          # Known output locations for XP x86 free build per README
+          $candidates = @(
+            "ntoskrn8\objfre_WXP_x86\i386\ntoskrn8.sys",
+            "ntoskrn8\objfre_WXP_x86\i386\ntoskrnl_emu.sys",
+            "ntoskrn8\objfre_win7_x86\i386\ntoskrn8.sys",
+            "ntoskrn8\objfre_win7_x86\i386\ntoskrnl_emu.sys"
+          )
+
+          $found = $null
+          foreach ($rel in $candidates) {
+            $path = Join-Path $root $rel
+            if (Test-Path $path) {
+              $found = $path
+              break
+            }
+          }
+
+          if (-not $found) {
+            Write-Host "Build finished but ntoskrn8.sys was not found in known locations."
+            Write-Host "Listing all *.sys under workspace:"
+            Get-ChildItem -Path $root -Recurse -Filter "*.sys" | ForEach-Object {
+              Write-Host $_.FullName
+            }
+            exit 1
+          }
+
+          Write-Host "Found built SYS: $found"
+          $outDir = "$env:RUNNER_TEMP\out"
+          New-Item -ItemType Directory -Force -Path $outDir | Out-Null
+          Copy-Item $found (Join-Path $outDir "ntoskrn8.sys")
+
+          "OUT_DIR=$outDir" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding ascii
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ntoskrn8-sys
+          path: ${{ env.OUT_DIR }}\ntoskrn8.sys
