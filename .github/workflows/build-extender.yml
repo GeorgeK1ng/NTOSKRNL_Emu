@@ -102,8 +102,7 @@ jobs:
       - name: Patch ntddk.h / wdm.h (exact-line replace)
         shell: pwsh
         run: |
-          $ddkRoot = $env:DDKROOT
-          $inc = Join-Path $ddkRoot "inc\ddk"
+          $inc = "C:\WinDDK\7600.16385.1\inc\ddk"
 
           $files = @{
             "ntddk.h" = 9231
