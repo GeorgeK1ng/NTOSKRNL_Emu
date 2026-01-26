@@ -138,66 +138,105 @@ jobs:
 
           Write-Host "Exact-line patches applied."
 
-      - name: Build ntoskrn8.sys (fre x86 WXP)
+      - name: Build extender for all targets
         shell: cmd
         run: |
-          echo Using WDK at %DDKROOT%
+          echo Using DDKROOT=%DDKROOT%
           if "%DDKROOT%"=="" (
             echo DDKROOT is not set
             exit /b 1
           )
 
-          rem Initialize WDK 7.1 build environment (free, x86, Windows XP, no OACR)
+          set BASEDIR=%GITHUB_WORKSPACE%
+
+          rem === Windows XP x86 ===
           call "%DDKROOT%\bin\setenv.bat" "%DDKROOT%" fre x86 WXP no_oacr
+          cd /d "%BASEDIR%"
+          build -ceZ
+          if errorlevel 1 exit /b 1
 
-          rem Change to repo root
-          cd /d "%GITHUB_WORKSPACE%"
+          rem === Windows XP x64 (toolset WNET) ===
+          call "%DDKROOT%\bin\setenv.bat" "%DDKROOT%" fre amd64 WNET no_oacr
+          cd /d "%BASEDIR%"
+          build -ceZ
+          if errorlevel 1 exit /b 1
 
-          rem Classic DDK build
-          echo Running BUILD...
-          rem build -ceZ
-          bld
+          rem === Server 2003 x86 ===
+          call "%DDKROOT%\bin\setenv.bat" "%DDKROOT%" fre x86 WNET no_oacr
+          cd /d "%BASEDIR%"
+          build -ceZ
+          if errorlevel 1 exit /b 1
 
-      - name: Collect built SYS
+          rem === Vista x86 ===
+          call "%DDKROOT%\bin\setenv.bat" "%DDKROOT%" fre x86 WLH no_oacr
+          cd /d "%BASEDIR%"
+          build -ceZ
+          if errorlevel 1 exit /b 1
+
+          rem === Vista x64 ===
+          call "%DDKROOT%\bin\setenv.bat" "%DDKROOT%" fre amd64 WLH no_oacr
+          cd /d "%BASEDIR%"
+          build -ceZ
+          if errorlevel 1 exit /b 1
+
+          rem === Windows 7 x86 ===
+          call "%DDKROOT%\bin\setenv.bat" "%DDKROOT%" fre x86 WIN7 no_oacr
+          cd /d "%BASEDIR%"
+          build -ceZ
+          if errorlevel 1 exit /b 1
+
+          rem === Windows 7 x64 ===
+          call "%DDKROOT%\bin\setenv.bat" "%DDKROOT%" fre amd64 WIN7 no_oacr
+          cd /d "%BASEDIR%"
+          build -ceZ
+          if errorlevel 1 exit /b 1
+
+      - name: Collect built SYS files
         shell: pwsh
         run: |
           $root = $env:GITHUB_WORKSPACE
 
-          # Known output locations for XP x86 free build per README
-          $candidates = @(
-            "ntoskrn8\objfre_WXP_x86\i386\ntoskrn8.sys",
-            "ntoskrn8\objfre_WXP_x86\i386\ntoskrnl_emu.sys",
-            "ntoskrn8\objfre_win7_x86\i386\ntoskrn8.sys",
-            "ntoskrn8\objfre_win7_x86\i386\ntoskrnl_emu.sys"
-          )
-
-          $found = $null
-          foreach ($rel in $candidates) {
-            $path = Join-Path $root $rel
-            if (Test-Path $path) {
-              $found = $path
-              break
-            }
+          $map = @{
+            "xp_x86"        = "objfre_WXP_x86"
+            "xp_x64"        = "objfre_WNET_amd64"
+            "srv2003_x86"   = "objfre_WNET_x86"
+            "vista_x86"     = "objfre_WLH_x86"
+            "vista_x64"     = "objfre_WLH_amd64"
+            "win7_x86"      = "objfre_WIN7_x86"
+            "win7_x64"      = "objfre_WIN7_amd64"
           }
 
-          if (-not $found) {
-            Write-Host "Build finished but ntoskrn8.sys was not found in known locations."
-            Write-Host "Listing all *.sys under workspace:"
-            Get-ChildItem -Path $root -Recurse -Filter "*.sys" | ForEach-Object {
-              Write-Host $_.FullName
+          $out = Join-Path $env:RUNNER_TEMP "out"
+          New-Item -ItemType Directory -Force -Path $out | Out-Null
+
+          foreach ($kvp in $map.GetEnumerator()) {
+            $name = $kvp.Key
+            $dir  = $kvp.Value
+
+            $dirPath = Get-ChildItem -Path $root -Recurse -Directory -Filter $dir -ErrorAction SilentlyContinue |
+                       Select-Object -First 1
+
+            if (-not $dirPath) {
+              Write-Warning "Directory $dir not found, skipping $name"
+              continue
             }
-            exit 1
+
+            $sys = Get-ChildItem -Path $dirPath.FullName -Recurse -Filter "*.sys" |
+                   Select-Object -First 1
+
+            if (-not $sys) {
+              Write-Warning "No .sys found in $dir, skipping $name"
+              continue
+            }
+
+            $dest = Join-Path $out ("ntoskrn8_" + $name + ".sys")
+            Copy-Item $sys.FullName $dest
           }
 
-          Write-Host "Found built SYS: $found"
-          $outDir = "$env:RUNNER_TEMP\out"
-          New-Item -ItemType Directory -Force -Path $outDir | Out-Null
-          Copy-Item $found (Join-Path $outDir "ntoskrn8.sys")
+          "OUT_DIR=$out" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding ascii
 
-          "OUT_DIR=$outDir" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding ascii
-
-      - name: Upload artifact
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ntoskrn8-sys
-          path: ${{ env.OUT_DIR }}\ntoskrn8.sys
+          name: ntoskrn8-multi-target
+          path: ${{ env.OUT_DIR }}\*.sys
