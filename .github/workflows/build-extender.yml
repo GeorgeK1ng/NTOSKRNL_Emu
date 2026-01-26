@@ -84,11 +84,8 @@ jobs:
           Write-Host "KitSetup.exe exit code: $($proc.ExitCode)"
 
           if (Test-Path $logFile) {
-            Write-Host "=== KitSetup.log (last 200 lines) ==="
-            Get-Content $logFile -Tail 200
-          }
-          else {
-            Write-Host "KitSetup.log was not created."
+            Write-Host "=== KitSetup.log (last 50 lines) ==="
+            Get-Content $logFile -Tail 50
           }
 
           if (-not (Test-Path $target)) {
@@ -96,8 +93,22 @@ jobs:
             exit 1
           }
 
-          Write-Host "WDK appears to be installed in $target"
-          "DDKROOT=$target" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding ascii
+          Write-Host "WDK appears to be installed under $target"
+
+          $setenv = Get-ChildItem -Path $target -Recurse -Filter "setenv.bat" -ErrorAction SilentlyContinue |
+                    Select-Object -First 1
+
+          if (-not $setenv) {
+            Write-Error "setenv.bat not found under $target"
+            exit 1
+          }
+
+          $binDir  = Split-Path $setenv.FullName -Parent
+          $ddkRoot = Split-Path $binDir -Parent
+
+          Write-Host "Detected DDKROOT: $ddkRoot"
+
+          "DDKROOT=$ddkRoot" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding ascii
 
       - name: Patch ntddk.h / wdm.h (exact-line replace)
         shell: pwsh
@@ -141,7 +152,6 @@ jobs:
       - name: Build extender for all targets
         shell: cmd
         run: |
-          set DDKROOT=%DDKROOT%\7600.16385.1
           echo Using DDKROOT=%DDKROOT%
           if "%DDKROOT%"=="" (
             echo DDKROOT is not set
@@ -151,42 +161,56 @@ jobs:
           set BASEDIR=%GITHUB_WORKSPACE%
 
           rem === Windows XP x86 ===
+          echo.
+          echo ==== Building XP x86 ====
           call "%DDKROOT%\bin\setenv.bat" "%DDKROOT%" fre x86 WXP no_oacr
           cd /d "%BASEDIR%"
           build -ceZ
           if errorlevel 1 exit /b 1
 
           rem === Windows XP x64 (toolset WNET) ===
+          echo.
+          echo ==== Building XP x64 (WNET amd64) ====
           call "%DDKROOT%\bin\setenv.bat" "%DDKROOT%" fre amd64 WNET no_oacr
           cd /d "%BASEDIR%"
           build -ceZ
           if errorlevel 1 exit /b 1
 
           rem === Server 2003 x86 ===
+          echo.
+          echo ==== Building Server 2003 x86 (WNET x86) ====
           call "%DDKROOT%\bin\setenv.bat" "%DDKROOT%" fre x86 WNET no_oacr
           cd /d "%BASEDIR%"
           build -ceZ
           if errorlevel 1 exit /b 1
 
           rem === Vista x86 ===
+          echo.
+          echo ==== Building Vista x86 (WLH x86) ====
           call "%DDKROOT%\bin\setenv.bat" "%DDKROOT%" fre x86 WLH no_oacr
           cd /d "%BASEDIR%"
           build -ceZ
           if errorlevel 1 exit /b 1
 
           rem === Vista x64 ===
+          echo.
+          echo ==== Building Vista x64 (WLH amd64) ====
           call "%DDKROOT%\bin\setenv.bat" "%DDKROOT%" fre amd64 WLH no_oacr
           cd /d "%BASEDIR%"
           build -ceZ
           if errorlevel 1 exit /b 1
 
           rem === Windows 7 x86 ===
+          echo.
+          echo ==== Building Windows 7 x86 (WIN7 x86) ====
           call "%DDKROOT%\bin\setenv.bat" "%DDKROOT%" fre x86 WIN7 no_oacr
           cd /d "%BASEDIR%"
           build -ceZ
           if errorlevel 1 exit /b 1
 
           rem === Windows 7 x64 ===
+          echo.
+          echo ==== Building Windows 7 x64 (WIN7 amd64) ====
           call "%DDKROOT%\bin\setenv.bat" "%DDKROOT%" fre amd64 WIN7 no_oacr
           cd /d "%BASEDIR%"
           build -ceZ
