@@ -3922,7 +3922,25 @@ typedef struct _IO_REPORT_INTERRUPT_ACTIVE_STATE_PARAMETERS {
 
 } IO_REPORT_INTERRUPT_ACTIVE_STATE_PARAMETERS,
   *PIO_REPORT_INTERRUPT_ACTIVE_STATE_PARAMETERS;
-  
+ 
+
+// Needed for usbport 8.0 RTM
+
+
+
+struct INTERRUPT_VECTOR_DATA {
+    // Define the members of INTERRUPT_VECTOR_DATA here
+};
+
+// Define _INTERRUPT_CONNECTION_DATA using _INTERRUPT_VECTOR_DATA
+typedef struct _INTERRUPT_CONNECTION_DATA {
+    ULONG Count;
+    INTERRUPT_VECTOR_DATA Vectors[1]; // Flexible array member
+    // You can add other members here as needed
+} INTERRUPT_CONNECTION_DATA;
+
+#define NORMAL_DISPATCH_LENGTH 106                  // ntddk wdm
+#define DISPATCH_LENGTH NORMAL_DISPATCH_LENGTH      // ntddk wdm
 
 typedef struct _KINTERRUPT {
     CSHORT              Type;
