@@ -3924,6 +3924,41 @@ typedef struct _IO_REPORT_INTERRUPT_ACTIVE_STATE_PARAMETERS {
   *PIO_REPORT_INTERRUPT_ACTIVE_STATE_PARAMETERS;
   
 
+typedef struct _KINTERRUPT {
+    CSHORT              Type;
+    CSHORT              Size;
+    LIST_ENTRY          InterruptListEntry;
+    PKSERVICE_ROUTINE   ServiceRoutine;
+    PVOID               ServiceContext;
+    KSPIN_LOCK          SpinLock;
+    ULONG               TickCount;
+    PKSPIN_LOCK         ActualLock;
+    PVOID               DispatchAddress;
+    ULONG               Vector;
+    KIRQL               Irql;
+    KIRQL               SynchronizeIrql;
+    BOOLEAN             FloatingSave;
+    BOOLEAN             Connected;
+    CHAR                Number;
+    UCHAR               ShareVector;
+    KINTERRUPT_MODE     Mode;
+    ULONG               ServiceCount;
+    ULONG               DispatchCount;
+    ULONG               DispatchCode[DISPATCH_LENGTH];
+} KINTERRUPT, *PKINTERRUPT;
+
+
+typedef struct _IO_INTERRUPT_STRUCTURE {
+    KSPIN_LOCK SpinLock;
+    KAFFINITY TargetProcessors;
+    INTERRUPT_CONNECTION_DATA ConnectionData;
+    KINTERRUPT UserInterruptObject;
+    BOOLEAN PassiveInterrupt;
+    KEVENT PassiveEvent;
+    KDPC Dpc;
+    PKINTERRUPT InterruptObject[ANYSIZE_ARRAY];
+} IO_INTERRUPT_STRUCTURE, *PIO_INTERRUPT_STRUCTURE;
+
 
 // RtlNumberOfSetBitsUlongPtr replacement
 
