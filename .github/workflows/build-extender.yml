@@ -158,6 +158,7 @@ jobs:
             exit /b 1
           )
 
+          rem Uložíme root repa do proměnné, na kterou WDK nesahá
           set SRCDIR=%GITHUB_WORKSPACE%
           echo SRCDIR=%SRCDIR%
 
@@ -166,15 +167,15 @@ jobs:
           echo ==== Building XP x86 ====
           call "%DDKROOT%\bin\setenv.bat" %DDKROOT% fre x86 WXP no_oacr
           cd /d "%SRCDIR%"
-          bld
+          build -ceZ
           if errorlevel 1 exit /b 1
 
-          rem === Windows XP x64 (toolset WNET) ===
+          rem === Windows XP x64 (toolset WNET) ====
           echo.
           echo ==== Building XP x64 (WNET amd64) ====
           call "%DDKROOT%\bin\setenv.bat" %DDKROOT% fre amd64 WNET no_oacr
           cd /d "%SRCDIR%"
-          call BLD
+          build -ceZ
           if errorlevel 1 exit /b 1
 
           rem === Server 2003 x86 ===
@@ -182,7 +183,7 @@ jobs:
           echo ==== Building Server 2003 x86 (WNET x86) ====
           call "%DDKROOT%\bin\setenv.bat" %DDKROOT% fre x86 WNET no_oacr
           cd /d "%SRCDIR%"
-          call BLD
+          build -ceZ
           if errorlevel 1 exit /b 1
 
           rem === Vista x86 ===
@@ -190,7 +191,7 @@ jobs:
           echo ==== Building Vista x86 (WLH x86) ====
           call "%DDKROOT%\bin\setenv.bat" %DDKROOT% fre x86 WLH no_oacr
           cd /d "%SRCDIR%"
-          call BLD
+          build -ceZ
           if errorlevel 1 exit /b 1
 
           rem === Vista x64 ===
@@ -198,7 +199,7 @@ jobs:
           echo ==== Building Vista x64 (WLH amd64) ====
           call "%DDKROOT%\bin\setenv.bat" %DDKROOT% fre amd64 WLH no_oacr
           cd /d "%SRCDIR%"
-          call BLD
+          build -ceZ
           if errorlevel 1 exit /b 1
 
           rem === Windows 7 x86 ===
@@ -206,7 +207,7 @@ jobs:
           echo ==== Building Windows 7 x86 (WIN7 x86) ====
           call "%DDKROOT%\bin\setenv.bat" %DDKROOT% fre x86 WIN7 no_oacr
           cd /d "%SRCDIR%"
-          call BLD
+          build -ceZ
           if errorlevel 1 exit /b 1
 
           rem === Windows 7 x64 ===
@@ -214,7 +215,7 @@ jobs:
           echo ==== Building Windows 7 x64 (WIN7 amd64) ====
           call "%DDKROOT%\bin\setenv.bat" %DDKROOT% fre amd64 WIN7 no_oacr
           cd /d "%SRCDIR%"
-          call BLD
+          build -ceZ
           if errorlevel 1 exit /b 1
 
       - name: Collect built SYS files
