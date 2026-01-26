@@ -141,6 +141,7 @@ jobs:
       - name: Build extender for all targets
         shell: cmd
         run: |
+          set DDKROOT=%DDKROOT%\7600.16385.1
           echo Using DDKROOT=%DDKROOT%
           if "%DDKROOT%"=="" (
             echo DDKROOT is not set
