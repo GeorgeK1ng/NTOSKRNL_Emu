@@ -4045,6 +4045,59 @@ ExNotifyBootDeviceRemoval_k8(
 
 	
 
+
+extern "C" {
+	NTSTATUS
+	NTAPI
+	ZwQueryInformationProcess(
+		HANDLE ProcessHandle,
+		PROCESSINFOCLASS ProcessInformationClass,
+		PVOID ProcessInformation,
+		ULONG ProcessInformationLength,
+		PULONG ReturnLength);
+}
+
+
+PUNICODE_STRING
+GetProcessImageFileName(
+	PEPROCESS Process
+){
+    PUNICODE_STRING imageName = NULL;
+
+    if (Process != NULL)
+    {
+        HANDLE processHandle;
+        NTSTATUS status = ObOpenObjectByPointer(Process, OBJ_KERNEL_HANDLE, NULL, GENERIC_READ, NULL, KernelMode, &processHandle);
+
+        if (NT_SUCCESS(status))
+        {
+            ULONG returnLength;
+            ULONG bufferSize = 0;
+
+            // First, query the required buffer size
+            status = ZwQueryInformationProcess(processHandle, ProcessImageFileName, NULL, 0, &bufferSize);
+
+            if (status == STATUS_INFO_LENGTH_MISMATCH)
+            {
+                imageName = (PUNICODE_STRING)ExAllocatePoolWithTag(NonPagedPool, bufferSize, 'MyT');
+                if (imageName != NULL)
+                {
+                    status = ZwQueryInformationProcess(processHandle, ProcessImageFileName, imageName, bufferSize, &returnLength);
+                    if (!NT_SUCCESS(status))
+                    {
+                        ExFreePool(imageName);
+                        imageName = NULL;
+                    }
+                }
+            }
+
+            ZwClose(processHandle);
+        }
+    }
+
+    return imageName;
+}
+
 NTSTATUS
 SeLocateProcessImageName_k8(
     PEPROCESS Process,
