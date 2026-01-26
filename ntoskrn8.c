@@ -3939,20 +3939,424 @@ RtlNumberOfSetBitsUlongPtr_k8(
     }
     return Count;
 }
-VOID
-IoReportInterruptActive (
-    PIO_REPORT_INTERRUPT_ACTIVE_STATE_PARAMETERS Parameters
-    ){
-		
-	}
+
+
+NTSTATUS
+CustomMaskInterrupt(
+    PKINTERRUPT InterruptObject,
+    ULONG ProcessorCount,
+    PVOID ConnectionData,
+    PKDPC Dpc
+) {
+    UNREFERENCED_PARAMETER(ProcessorCount);
+    UNREFERENCED_PARAMETER(ConnectionData);
+    UNREFERENCED_PARAMETER(Dpc);
+
+    if (InterruptObject == NULL) {
+        return STATUS_INVALID_PARAMETER;
+    }
+
+    // Mask the interrupt by setting the IsMasked flag
+    KIRQL oldIrql;
+    KeAcquireSpinLock(&InterruptObject->SpinLock, &oldIrql);
+    InterruptObject->Connected = TRUE;  // Custom flag to indicate masking
+    KeReleaseSpinLock(&InterruptObject->SpinLock, oldIrql);
+
+    return STATUS_SUCCESS;
+}
+
+
+
+NTSTATUS
+CustomUnMaskInterrupt(
+    PKINTERRUPT InterruptObject,
+    ULONG ProcessorCount,
+    PVOID ConnectionData
+) {
+    UNREFERENCED_PARAMETER(ProcessorCount);
+    UNREFERENCED_PARAMETER(ConnectionData);
+
+    if (InterruptObject == NULL) {
+        return STATUS_INVALID_PARAMETER;
+    }
+
+    // Mask the interrupt by setting the IsMasked flag
+    KIRQL oldIrql;
+    KeAcquireSpinLock(&InterruptObject->SpinLock, &oldIrql);
+    InterruptObject->Connected = FALSE;  // Custom flag to indicate masking
+    KeReleaseSpinLock(&InterruptObject->SpinLock, oldIrql);
+
+    return STATUS_SUCCESS;
+}
+
+
 
 VOID
-IoReportInterruptInactive (
-    PIO_REPORT_INTERRUPT_ACTIVE_STATE_PARAMETERS Parameters
-    ){
-		
-	}
+IopMaskInterrupt (
+    PKINTERRUPT InterruptObject
+    )
+
+/*++
+
+Routine Description:
+
+    This routine masks an interrupt object initialized and connected by
+    a call to IopConnectInterrupt.  The interrupt object passed to this routine
+    is an opaque structure that is part of an internal interrupt structure
+    containing the state of the call to IopConnectInterrupt. Note that no
+    interrupt objects directly connected using the kernel services may be input
+    to this routine.
+
+Arguments:
+
+    InterruptObject - Supplies a pointer to an opaque structure that is part
+        of an internal interrupt structure that tracks the interrupt connection.
+
+Return Value:
+
+    None.
+
+--*/
+
+{
+
+    PIO_INTERRUPT_STRUCTURE InterruptStructure;
+    CCHAR ProcessorCount;
+    NTSTATUS Status;
+
+    NT_ASSERT(KeGetCurrentIrql() <= DISPATCH_LEVEL);
+
+    //
+    // Obtain a pointer to the builtin interrupt object in the I/O interrupt
+    // structure.
+    //
+
+    InterruptStructure = CONTAINING_RECORD(InterruptObject,
+                                           IO_INTERRUPT_STRUCTURE,
+                                           UserInterruptObject);
+
+    //
+    // Call Ke to mask the array of per-processor interrupt objects.
+    // There is one object for each set bit in the target processor mask.
+    // This call also mask the interrupt from any platform interrupt
+    // controllers, if appropriate.
+    //
+
+    ProcessorCount = (CCHAR)RtlNumberOfSetBitsUlongPtr_k8(
+                                InterruptStructure->TargetProcessors);
+
+    NT_ASSERT(ProcessorCount != 0);
+
+/*	KeMaskInterrupt - Source code unknown, used replacement CustomMaskInterrupt
+
+*/
+
+    Status = CustomMaskInterrupt(InterruptObject,
+                             ProcessorCount,
+                             &InterruptStructure->ConnectionData,
+                             &InterruptStructure->Dpc);
+
+	//Status = STATUS_SUCCESS;
+
+    NT_ASSERT(Status == STATUS_SUCCESS ||
+               Status == STATUS_ALREADY_DISCONNECTED);
+
+    return;
+}
+
+
+VOID
+IopUnmaskInterrupt (
+    PKINTERRUPT InterruptObject
+    )
+
+/*++
+
+Routine Description:
+
+    This routine unmasks an interrupt object initialized and connected by
+    a call to IopConnectInterrupt and then subsequently masked by
+    IopMaskInterrupt.  The interrupt object passed to this routine
+    is an opaque structure that is part of an internal interrupt structure
+    containing the state of the call to IopConnectInterrupt. Note that no
+    interrupt objects directly connected using the kernel services may be input
+    to this routine.
+
+Arguments:
+
+    InterruptObject - Supplies a pointer to an opaque structure that is part
+        of an internal interrupt structure that tracks the interrupt connection.
+
+Return Value:
+
+    None.
+
+--*/
+
+{
+
+    PIO_INTERRUPT_STRUCTURE InterruptStructure;
+    CCHAR ProcessorCount;
+    NTSTATUS Status;
+
+    NT_ASSERT(KeGetCurrentIrql() <= DISPATCH_LEVEL);
+
+    //
+    // Obtain a pointer to the builtin interrupt object in the I/O interrupt
+    // structure.
+    //
+
+    InterruptStructure = CONTAINING_RECORD(InterruptObject,
+                                           IO_INTERRUPT_STRUCTURE,
+                                           UserInterruptObject);
+
+    //
+    // Call Ke to unmask the array of per-processor interrupt objects.
+    // There is one object for each set bit in the target processor mask.
+    // This call also unmasks the interrupt from any platform interrupt
+    // controllers, if appropriate.
+    //
+
+    ProcessorCount = (CCHAR)RtlNumberOfSetBitsUlongPtr_k8(
+                                InterruptStructure->TargetProcessors);
+
+    NT_ASSERT(ProcessorCount != 0);
 	
+/*	KeUnMaskInterrupt - Source code unknown, used replacement CustomUnMaskInterrupt
+
+*/
+    Status = CustomUnMaskInterrupt(InterruptObject,
+                               ProcessorCount,
+                              &InterruptStructure->ConnectionData);
+ 
+
+	//Status = STATUS_SUCCESS;
+
+    NT_ASSERT(Status == STATUS_SUCCESS ||
+               Status == STATUS_INTERRUPT_VECTOR_ALREADY_CONNECTED);
+
+    return;
+}
+
+
+VOID
+IoReportInterruptActive_k8 (
+    PIO_REPORT_INTERRUPT_ACTIVE_STATE_PARAMETERS Parameters
+    )
+
+/*++
+
+Routine Description:
+
+    This function informs the system that the interrupt service routine
+    associated with an interrupt or set of interrupts that were connected
+    through an earlier call to IoConnectInterruptEx is active and expecting
+    interrupt requests on the associated lines. This is typically called after
+    having reported the lines as inactive via IoReportInterruptInactive.
+
+Arguments:
+
+    Parameters - Supplies the parameters associated with this interrupt
+        reporting attempt.  See the definition of this structure for
+        details on the meaning of the enclosed fields.
+
+Return Value:
+
+    None.
+
+Environment:
+
+    Kenrel mode.
+
+--*/
+
+{/*
+
+    PIO_INTERRUPT_MESSAGE_INFO_ENTRY Entry;
+    ULONG Index;
+    PIO_INTERRUPT_LINE_INFO InterruptTable;
+    PIO_INTERRUPT_MESSAGE_INFO MessageTable;
+
+    switch (Parameters->Version) {
+
+        //
+        // Fully specified or line based interrupt case. Unmask the interrupt
+        // by passing a pointer to the associated interrupt object to
+        // IopUnmaskInterrupt.
+        //
+
+    case CONNECT_FULLY_SPECIFIED:
+    case CONNECT_FULLY_SPECIFIED_GROUP:
+        IopUnmaskInterrupt(Parameters->ConnectionContext.InterruptObject);
+        break;
+
+        //
+        // Line based case. There may be multiple interrupt objects associated
+        // with this request all stored in an interrupt table. Unmask each
+        // interrupt object.
+        //
+
+    case CONNECT_LINE_BASED:
+        InterruptTable = CONTAINING_RECORD(
+                                Parameters->ConnectionContext.InterruptObject,
+                                IO_INTERRUPT_LINE_INFO,
+                                UserInterruptObject);
+
+        for (Index = 0; Index < InterruptTable->InterruptCount; Index +=1) {
+            IopUnmaskInterrupt(
+                &(InterruptTable->InterruptInfo[Index]->UserInterruptObject));
+        }
+
+        break;
+
+        //
+        // Message based case.  There may be multiple interrupt objects
+        // associated with this request, all stored in a message table.
+        // Unmask each interrupt object.
+        //
+
+    case CONNECT_MESSAGE_BASED:
+        MessageTable = Parameters->ConnectionContext.InterruptMessageTable;
+        for (Index = 0; Index < MessageTable->MessageCount; Index++) {
+            Entry = &MessageTable->MessageInfo[Index];
+            IopUnmaskInterrupt(Entry->InterruptObject);
+        }
+
+        break;
+
+        //
+        // Unrecognized interrupt case.  IoConnectInterruptEx will never
+        // successfully carry out a connection attempt of this type.
+        // Furthermore, the given connection type is required to match the one
+        // returned by a corresponding successful interrupt connection attempt.
+        // As a result, we'll only reach this case in the presence of driver
+        // bugs.
+        //
+
+    default:
+        KeBugCheckEx(PNP_DETECTED_FATAL_ERROR,
+                     PNP_ERR_BAD_INTERRUPT_REPORTING_ATTEMPT,
+                     (ULONG_PTR)Parameters->Version,
+                     0,
+                     0);
+
+        break;
+    }
+
+    return;*/
+}
+
+VOID
+IoReportInterruptInactive_k8 (
+    PIO_REPORT_INTERRUPT_ACTIVE_STATE_PARAMETERS Parameters
+    )
+
+/*++
+
+Routine Description:
+
+    This function informs the system that the the interrupt service routine
+    associated with an interrupt or set of interrupts that were connected
+    through an earlier call to IoConnectInterruptEx is no longer active and
+    is not expecting interrupt requests on the associated lines. From the
+    inactive state the association can be re-activated or disonnected.
+
+Arguments:
+
+    Parameters - Supplies the parameters associated with this interrupt
+        reporting attempt.  See the definition of this structure for
+        details on the meaning of the enclosed fields.
+
+Return Value:
+
+    None.
+
+Environment:
+
+    Kenrel mode.
+
+--*/
+
+{
+/*
+    PIO_INTERRUPT_MESSAGE_INFO_ENTRY Entry;
+    ULONG Index;
+    PIO_INTERRUPT_LINE_INFO InterruptTable;
+    PIO_INTERRUPT_MESSAGE_INFO MessageTable;
+
+    switch (Parameters->Version) {
+
+        //
+        // Fully specified or line based interrupt case. Mask the interrupt by
+        // passing a pointer to the associated interrupt object to
+        // IopMaskInterrupt.
+        //
+
+    case CONNECT_FULLY_SPECIFIED:
+    case CONNECT_FULLY_SPECIFIED_GROUP:
+        IopMaskInterrupt(Parameters->ConnectionContext.InterruptObject);
+        break;
+
+        //
+        // Line based case. There may be multiple interrupt objects associated
+        // with this request all stored in an interrupt table. Mask each
+        // interrupt object.
+        //
+
+    case CONNECT_LINE_BASED:
+        InterruptTable = CONTAINING_RECORD(
+                                Parameters->ConnectionContext.InterruptObject,
+                                IO_INTERRUPT_LINE_INFO,
+                                UserInterruptObject);
+
+        for (Index = 0; Index < InterruptTable->InterruptCount; Index +=1) {
+            IopMaskInterrupt(
+                &InterruptTable->InterruptInfo[Index]->UserInterruptObject);
+        }
+
+        break;
+
+        //
+        // Message based case.  There may be multiple interrupt objects
+        // associated with this request, all stored in a message table.
+        // Mask each interrupt object.
+        //
+
+    case CONNECT_MESSAGE_BASED:
+        MessageTable = Parameters->ConnectionContext.InterruptMessageTable;
+        for (Index = 0; Index < MessageTable->MessageCount; Index++) {
+            Entry = &MessageTable->MessageInfo[Index];
+            IopMaskInterrupt(Entry->InterruptObject);
+        }
+
+        break;
+
+        //
+        // Unrecognized interrupt case.  IoConnectInterruptEx will never
+        // successfully carry out a connection attempt of this type.
+        // Furthermore, the given connection type is required to match the one
+        // returned by a corresponding successful interrupt connection attempt.
+        // As a result, we'll only reach this case in the presence of driver
+        // bugs.
+        //
+
+    default:
+        KeBugCheckEx(PNP_DETECTED_FATAL_ERROR,
+                     PNP_ERR_BAD_INTERRUPT_REPORTING_ATTEMPT,
+                     (ULONG_PTR)Parameters->Version,
+                     0,
+                     0);
+
+        break;
+    }
+
+    return;*/
+}
+
+// end usbport
+
+
+
 
 VOID
 PoFxSetComponentWake (
