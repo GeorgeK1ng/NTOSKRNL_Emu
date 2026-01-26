@@ -164,7 +164,7 @@ jobs:
           echo.
           echo ==== Building XP x86 ====
           echo call "%DDKROOT%\bin\setenv.bat" "%DDKROOT%" fre x86 WXP no_oacr
-          call "%DDKROOT%\bin\setenv.bat" "%DDKROOT%" fre x86 WXP no_oacr
+          call "%DDKROOT%\bin\setenv.bat" %DDKROOT% fre x86 WXP no_oacr
           
           echo %BASEDIR%
 
