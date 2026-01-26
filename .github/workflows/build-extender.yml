@@ -2,11 +2,6 @@ name: Build NTOSKRNL Extender (WDK 7.1 install)
 
 on:
   push:
-    branches:
-      - auto-build
-  pull_request:
-    branches:
-      - auto-build
 
 jobs:
   build-extender:
