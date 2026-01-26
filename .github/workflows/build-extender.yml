@@ -14,7 +14,7 @@ jobs:
 
     env:
       WDK_ISO_URL: https://github.com/KunYi/WDK_DDKArchive/releases/download/WDK_v7.1.0/GRMWDK_EN_7600_1.ISO
-      WDK_INSTALL_DIR: C:\WinDDK\7600.16385.1
+      WDK_INSTALL_DIR: C:\WinDDK
 
     steps:
       - name: Checkout
