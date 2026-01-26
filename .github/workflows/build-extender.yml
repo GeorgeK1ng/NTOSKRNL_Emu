@@ -149,7 +149,7 @@ jobs:
 
           Write-Host "Exact-line patches applied."
 
-      - name: Build extender for all targets
+      - name: Build XP x86
         shell: cmd
         run: |
           echo DDKROOT=%DDKROOT%
@@ -157,66 +157,88 @@ jobs:
             echo DDKROOT is not set
             exit /b 1
           )
-
-          rem Uložíme root repa do proměnné, na kterou WDK nesahá
           set SRCDIR=%GITHUB_WORKSPACE%
-          echo SRCDIR=%SRCDIR%
-
-          rem === Windows XP x86 ===
-          echo.
-          echo ==== Building XP x86 ====
           call "%DDKROOT%\bin\setenv.bat" %DDKROOT% fre x86 WXP no_oacr
           cd /d "%SRCDIR%"
           build -ceZ
-          if errorlevel 1 exit /b 1
 
-          rem === Windows XP x64 (toolset WNET) ====
-          echo.
-          echo ==== Building XP x64 (WNET amd64) ====
+      - name: Build XP x64 (WNET amd64)
+        shell: cmd
+        run: |
+          echo DDKROOT=%DDKROOT%
+          if "%DDKROOT%"=="" (
+            echo DDKROOT is not set
+            exit /b 1
+          )
+          set SRCDIR=%GITHUB_WORKSPACE%
           call "%DDKROOT%\bin\setenv.bat" %DDKROOT% fre amd64 WNET no_oacr
           cd /d "%SRCDIR%"
           build -ceZ
-          if errorlevel 1 exit /b 1
 
-          rem === Server 2003 x86 ===
-          echo.
-          echo ==== Building Server 2003 x86 (WNET x86) ====
+      - name: Build Server 2003 x86 (WNET x86)
+        shell: cmd
+        run: |
+          echo DDKROOT=%DDKROOT%
+          if "%DDKROOT%"=="" (
+            echo DDKROOT is not set
+            exit /b 1
+          )
+          set SRCDIR=%GITHUB_WORKSPACE%
           call "%DDKROOT%\bin\setenv.bat" %DDKROOT% fre x86 WNET no_oacr
           cd /d "%SRCDIR%"
           build -ceZ
-          if errorlevel 1 exit /b 1
 
-          rem === Vista x86 ===
-          echo.
-          echo ==== Building Vista x86 (WLH x86) ====
+      - name: Build Vista x86 (WLH x86)
+        shell: cmd
+        run: |
+          echo DDKROOT=%DDKROOT%
+          if "%DDKROOT%"=="" (
+            echo DDKROOT is not set
+            exit /b 1
+          )
+          set SRCDIR=%GITHUB_WORKSPACE%
           call "%DDKROOT%\bin\setenv.bat" %DDKROOT% fre x86 WLH no_oacr
           cd /d "%SRCDIR%"
           build -ceZ
-          if errorlevel 1 exit /b 1
 
-          rem === Vista x64 ===
-          echo.
-          echo ==== Building Vista x64 (WLH amd64) ====
+      - name: Build Vista x64 (WLH amd64)
+        shell: cmd
+        run: |
+          echo DDKROOT=%DDKROOT%
+          if "%DDKROOT%"=="" (
+            echo DDKROOT is not set
+            exit /b 1
+          )
+          set SRCDIR=%GITHUB_WORKSPACE%
           call "%DDKROOT%\bin\setenv.bat" %DDKROOT% fre amd64 WLH no_oacr
           cd /d "%SRCDIR%"
           build -ceZ
-          if errorlevel 1 exit /b 1
 
-          rem === Windows 7 x86 ===
-          echo.
-          echo ==== Building Windows 7 x86 (WIN7 x86) ====
+      - name: Build Windows 7 x86 (WIN7 x86)
+        shell: cmd
+        run: |
+          echo DDKROOT=%DDKROOT%
+          if "%DDKROOT%"=="" (
+            echo DDKROOT is not set
+            exit /b 1
+          )
+          set SRCDIR=%GITHUB_WORKSPACE%
           call "%DDKROOT%\bin\setenv.bat" %DDKROOT% fre x86 WIN7 no_oacr
           cd /d "%SRCDIR%"
           build -ceZ
-          if errorlevel 1 exit /b 1
 
-          rem === Windows 7 x64 ===
-          echo.
-          echo ==== Building Windows 7 x64 (WIN7 amd64) ====
+      - name: Build Windows 7 x64 (WIN7 amd64)
+        shell: cmd
+        run: |
+          echo DDKROOT=%DDKROOT%
+          if "%DDKROOT%"=="" (
+            echo DDKROOT is not set
+            exit /b 1
+          )
+          set SRCDIR=%GITHUB_WORKSPACE%
           call "%DDKROOT%\bin\setenv.bat" %DDKROOT% fre amd64 WIN7 no_oacr
           cd /d "%SRCDIR%"
           build -ceZ
-          if errorlevel 1 exit /b 1
 
       - name: Collect built SYS files
         shell: pwsh
