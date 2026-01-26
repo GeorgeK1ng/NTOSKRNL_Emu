@@ -240,46 +240,63 @@ jobs:
           cd /d "%SRCDIR%"
           build -ceZ
 
-      - name: Collect built SYS files
+      - name: Collect built SYS files (by NT version)
         shell: pwsh
         run: |
           $root = $env:GITHUB_WORKSPACE
 
-          $map = @{
-            "xp_x86"        = "objfre_WXP_x86"
-            "xp_x64"        = "objfre_WNET_amd64"
-            "srv2003_x86"   = "objfre_WNET_x86"
-            "vista_x86"     = "objfre_WLH_x86"
-            "vista_x64"     = "objfre_WLH_amd64"
-            "win7_x86"      = "objfre_WIN7_x86"
-            "win7_x64"      = "objfre_WIN7_amd64"
-          }
+          $map = @(
+            @{ name = "xp_x86";       obj = "objfre_WXP_x86";      ver = "5.1_x86" }
+            @{ name = "xp_x64";       obj = "objfre_WNET_amd64";   ver = "5.2_x64" }  # XP x64 je 5.2
+            @{ name = "srv2003_x86";  obj = "objfre_WNET_x86";     ver = "5.2_x86" }
+            @{ name = "vista_x86";    obj = "objfre_WLH_x86";      ver = "6.0_x86" }
+            @{ name = "vista_x64";    obj = "objfre_WLH_amd64";    ver = "6.0_x64" }
+            @{ name = "win7_x86";     obj = "objfre_WIN7_x86";     ver = "6.1_x86" }
+            @{ name = "win7_x64";     obj = "objfre_WIN7_amd64";   ver = "6.1_x64" }
+          )
 
           $out = Join-Path $env:RUNNER_TEMP "out"
           New-Item -ItemType Directory -Force -Path $out | Out-Null
 
-          foreach ($kvp in $map.GetEnumerator()) {
-            $name = $kvp.Key
-            $dir  = $kvp.Value
+          foreach ($cfg in $map) {
+            $name = $cfg.name
+            $objDirName = $cfg.obj
+            $verFolder = $cfg.ver
 
-            $dirPath = Get-ChildItem -Path $root -Recurse -Directory -Filter $dir -ErrorAction SilentlyContinue |
+            $dirPath = Get-ChildItem -Path $root -Recurse -Directory -Filter $objDirName -ErrorAction SilentlyContinue |
                        Select-Object -First 1
 
             if (-not $dirPath) {
-              Write-Warning "Directory $dir not found, skipping $name"
+              Write-Warning "Directory $objDirName not found, skipping $name"
               continue
             }
 
-            $sys = Get-ChildItem -Path $dirPath.FullName -Recurse -Filter "*.sys" |
-                   Select-Object -First 1
+            $ntos = Get-ChildItem -Path $dirPath.FullName -Recurse -Filter "ntoskrn8.sys" -ErrorAction SilentlyContinue |
+                    Select-Object -First 1
+            $stor = Get-ChildItem -Path $dirPath.FullName -Recurse -Filter "storpor8.sys" -ErrorAction SilentlyContinue |
+                    Select-Object -First 1
+            $kern = Get-ChildItem -Path $dirPath.FullName -Recurse -Filter "kernel8.dll" -ErrorAction SilentlyContinue |
+                    Select-Object -First 1
 
-            if (-not $sys) {
-              Write-Warning "No .sys found in $dir, skipping $name"
+            if (-not $ntos -and -not $stor) {
+              Write-Warning "No ntoskrn8.sys or storpor8.sys found in $objDirName, skipping $name"
               continue
             }
 
-            $dest = Join-Path $out ("ntoskrn8_" + $name + ".sys")
-            Copy-Item $sys.FullName $dest
+            $destDir = Join-Path $out $verFolder
+            New-Item -ItemType Directory -Force -Path $destDir | Out-Null
+
+            if ($ntos) {
+              Copy-Item $ntos.FullName (Join-Path $destDir "ntoskrn8.sys") -Force
+            }
+            if ($stor) {
+              Copy-Item $stor.FullName (Join-Path $destDir "storpor8.sys") -Force
+            }
+            if ($kern) {
+              Copy-Item $stor.FullName (Join-Path $destDir "kernel8.dll") -Force
+            }
+
+            Write-Host "Collected $name -> $verFolder"
           }
 
           "OUT_DIR=$out" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding ascii
@@ -288,4 +305,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ntoskrn8-multi-target
-          path: ${{ env.OUT_DIR }}\*.sys
+          path: ${{ env.OUT_DIR }}
