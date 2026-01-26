@@ -152,74 +152,69 @@ jobs:
       - name: Build extender for all targets
         shell: cmd
         run: |
-          echo Using DDKROOT=%DDKROOT%
+          echo DDKROOT=%DDKROOT%
           if "%DDKROOT%"=="" (
             echo DDKROOT is not set
             exit /b 1
           )
 
-          set BASEDIR=%GITHUB_WORKSPACE%
+          set SRCDIR=%GITHUB_WORKSPACE%
+          echo SRCDIR=%SRCDIR%
 
           rem === Windows XP x86 ===
           echo.
           echo ==== Building XP x86 ====
-          echo call "%DDKROOT%\bin\setenv.bat" "%DDKROOT%" fre x86 WXP no_oacr
           call "%DDKROOT%\bin\setenv.bat" %DDKROOT% fre x86 WXP no_oacr
-          
-          echo %BASEDIR%
-
-          dir /b /s %BASEDIR%
-          
-          cd /d "%BASEDIR%"
-          build -ceZ
+          cd /d "%SRCDIR%"
+          call BLD
           if errorlevel 1 exit /b 1
 
           rem === Windows XP x64 (toolset WNET) ===
           echo.
           echo ==== Building XP x64 (WNET amd64) ====
-          call "%DDKROOT%\bin\setenv.bat" "%DDKROOT%" fre amd64 WNET no_oacr
-          cd /d "%BASEDIR%"
-          build -ceZ
+          call "%DDKROOT%\bin\setenv.bat" %DDKROOT% fre amd64 WNET no_oacr
+          cd /d "%SRCDIR%"
+          call BLD
           if errorlevel 1 exit /b 1
 
           rem === Server 2003 x86 ===
           echo.
           echo ==== Building Server 2003 x86 (WNET x86) ====
-          call "%DDKROOT%\bin\setenv.bat" "%DDKROOT%" fre x86 WNET no_oacr
-          cd /d "%BASEDIR%"
-          build -ceZ
+          call "%DDKROOT%\bin\setenv.bat" %DDKROOT% fre x86 WNET no_oacr
+          cd /d "%SRCDIR%"
+          call BLD
           if errorlevel 1 exit /b 1
 
           rem === Vista x86 ===
           echo.
           echo ==== Building Vista x86 (WLH x86) ====
-          call "%DDKROOT%\bin\setenv.bat" "%DDKROOT%" fre x86 WLH no_oacr
-          cd /d "%BASEDIR%"
-          build -ceZ
+          call "%DDKROOT%\bin\setenv.bat" %DDKROOT% fre x86 WLH no_oacr
+          cd /d "%SRCDIR%"
+          call BLD
           if errorlevel 1 exit /b 1
 
           rem === Vista x64 ===
           echo.
           echo ==== Building Vista x64 (WLH amd64) ====
-          call "%DDKROOT%\bin\setenv.bat" "%DDKROOT%" fre amd64 WLH no_oacr
-          cd /d "%BASEDIR%"
-          build -ceZ
+          call "%DDKROOT%\bin\setenv.bat" %DDKROOT% fre amd64 WLH no_oacr
+          cd /d "%SRCDIR%"
+          call BLD
           if errorlevel 1 exit /b 1
 
           rem === Windows 7 x86 ===
           echo.
           echo ==== Building Windows 7 x86 (WIN7 x86) ====
-          call "%DDKROOT%\bin\setenv.bat" "%DDKROOT%" fre x86 WIN7 no_oacr
-          cd /d "%BASEDIR%"
-          build -ceZ
+          call "%DDKROOT%\bin\setenv.bat" %DDKROOT% fre x86 WIN7 no_oacr
+          cd /d "%SRCDIR%"
+          call BLD
           if errorlevel 1 exit /b 1
 
           rem === Windows 7 x64 ===
           echo.
           echo ==== Building Windows 7 x64 (WIN7 amd64) ====
-          call "%DDKROOT%\bin\setenv.bat" "%DDKROOT%" fre amd64 WIN7 no_oacr
-          cd /d "%BASEDIR%"
-          build -ceZ
+          call "%DDKROOT%\bin\setenv.bat" %DDKROOT% fre amd64 WIN7 no_oacr
+          cd /d "%SRCDIR%"
+          call BLD
           if errorlevel 1 exit /b 1
 
       - name: Collect built SYS files
