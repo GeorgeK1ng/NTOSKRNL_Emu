@@ -75,7 +75,6 @@ jobs:
             '/log', $logFile
           )
 
-          # Spusť instalátor v jeho vlastním adresáři (bez /media, ať si najde média sám)
           $proc = Start-Process -FilePath $env:KITSETUP_PATH `
                                 -ArgumentList $args `
                                 -WorkingDirectory $kitDir `
@@ -100,34 +99,45 @@ jobs:
           Write-Host "WDK appears to be installed in $target"
           "DDKROOT=$target" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding ascii
 
-      - name: Patch ntddk.h / wdm.h (NODE_REQUIREMENT fix)
+      - name: Patch ntddk.h / wdm.h (exact-line replace)
         shell: pwsh
         run: |
           $ddkRoot = $env:DDKROOT
-          if (-not $ddkRoot) {
-            Write-Error "DDKROOT is not set"
-            exit 1
+          $inc = Join-Path $ddkRoot "inc\ddk"
+
+          $files = @{
+            "ntddk.h" = 9231
+            "wdm.h"   = 19432
           }
 
-          $headers = @(
-            Join-Path $ddkRoot "inc\ddk\ntddk.h",
-            Join-Path $ddkRoot "inc\ddk\wdm.h"
-          )
+          foreach ($kvp in $files.GetEnumerator()) {
+            $file = $kvp.Key
+            $lineNum = $kvp.Value
 
-          foreach ($h in $headers) {
-            if (-not (Test-Path $h)) {
-              Write-Error "Header not found: $h"
+            $path = Join-Path $inc $file
+            if (-not (Test-Path $path)) {
+              Write-Error "$file not found in WDK include dir"
               exit 1
             }
 
-            Write-Host "Patching $h"
-            $text = Get-Content $h -Raw
+            Write-Host "Patching $file (line $lineNum)"
 
-            # Replace NTDDI_WIN2K with NTDDI_VISTA in the NODE_REQUIREMENT typedef guard
-            $text = $text -replace 'NTDDI_WIN2K', 'NTDDI_VISTA'
+            $lines = Get-Content $path
 
-            Set-Content -Path $h -Value $text -Encoding ascii
+            if ($lineNum -gt $lines.Count) {
+              Write-Error "$file has only $($lines.Count) lines, expected >= $lineNum"
+              exit 1
+            }
+
+            # Replace only at the specific line
+            $line = $lines[$lineNum - 1]
+            $newLine = $line -replace 'NTDDI_WIN2K', 'NTDDI_VISTA'
+            $lines[$lineNum - 1] = $newLine
+
+            Set-Content -Path $path -Value $lines -Encoding ascii
           }
+
+          Write-Host "Exact-line patches applied."
 
       - name: Build ntoskrn8.sys (fre x86 WXP)
         shell: cmd
