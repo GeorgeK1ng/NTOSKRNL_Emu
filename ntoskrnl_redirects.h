@@ -1734,6 +1734,9 @@ k8_w2003_x86(       SeSetAuditParameter,                               16)
 k8_w2003_x86(       RtlInitAnsiStringEx,                                8)
 k8_w2003_x86(       RtlInitUnicodeStringEx,                             8)
 k8_w2003_x86(       memcmp,                             			   12)
+k8_w2003_x86(       KdChangeOption,   								   24)
+k8_w2003_x86(       KeTryToAcquireSpinLockAtDpcLevel,   			    4)
+k8_w2003_x86(       RtlNumberOfSetBitsUlongPtr,   					    4)
 
 #endif  // < Win2003 x32 Extender
 
@@ -4949,6 +4952,12 @@ k8_vista(   ZwAlpcConnectPort, 44)
 k8_vista(   ZwAlpcSendWaitReceivePort, 32)
 k8_vista(   ZwQueryLicenseValue, 20)
 k8_vista(   ZwQueryVirtualMemory, 24)
+k8_vista(   RtlComputeCrc32, 12)
+
+k8_vista(    MmCopyVirtualMemory,               28)
+k8_vista(   	SeLocateProcessImageName,	        8)
+k8_vista(   	bsearch,                	        20)
+k8_vista(   	PoSetFixedWakeSource,       	    4)
 
 #endif //   < Vista x32/x64 Extender
 
@@ -8936,6 +8945,13 @@ k8_win7(    PcwUnregister,                      4)
 k8_win7(    PoEndDeviceBusy,                    4)
 k8_win7(    PoStartDeviceBusy,                  4)
 k8_win7(    RtlDowncaseUnicodeChar,             4)
+k8_win7(    KeQueryUnbiasedInterruptTime,       0)
+k8_win7(    IoReplaceFileObjectName,           12)
+
+k8_win7(    IoReportInterruptActive,            4)
+k8_win7(    IoReportInterruptInactive,          4)
+
+k8_win7(   	RtlUnicodeToUTF8N,         	        20)
 
 
 #endif  // < Win7 x32/x64 Extender
@@ -13321,6 +13337,11 @@ k8_win8(   	PoFxIdleComponent,					12)
 k8_win8(   	MmMapIoSpaceEx,					    16)
 
 
+k8_win8(   	IoTryQueueWorkItem,       	        16)
+
+k8_win8(   	ExNotifyBootDeviceRemoval,       	4)
+k8_win8(   	ExRegisterBootDevice,       	    8)
+k8_win8(   	KseQueryDeviceFlags,       	        12)
 #endif  // < Win8 x32/x64 Extender
 
 

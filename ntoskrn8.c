@@ -1,14 +1,14 @@
 #undef    __STDC_WANT_SECURE_LIB__
 #define   __STDC_WANT_SECURE_LIB__ 0
 
-#include <ntddk.h> 
+#include <ntddk.h>
 #include "ntifs_ddk.h"
 #include <Initguid.h>
 #include <devpkey.h>
 
 #include "common.h"
 #include "wrk2003.h"
-
+#include <assert.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -2571,6 +2571,124 @@ MmMapIoSpaceEx_k8(
     return MmMapIoSpace(PhysicalAddress, NumberOfBytes, MmNonCached); 
 }
 
+const ULONG32 RtlCrc32Table [] = {
+    0x00000000, 0x77073096, 0xee0e612c, 0x990951ba, 0x076dc419, 0x706af48f,
+    0xe963a535, 0x9e6495a3, 0x0edb8832, 0x79dcb8a4, 0xe0d5e91e, 0x97d2d988,
+    0x09b64c2b, 0x7eb17cbd, 0xe7b82d07, 0x90bf1d91, 0x1db71064, 0x6ab020f2,
+    0xf3b97148, 0x84be41de, 0x1adad47d, 0x6ddde4eb, 0xf4d4b551, 0x83d385c7,
+    0x136c9856, 0x646ba8c0, 0xfd62f97a, 0x8a65c9ec, 0x14015c4f, 0x63066cd9,
+    0xfa0f3d63, 0x8d080df5, 0x3b6e20c8, 0x4c69105e, 0xd56041e4, 0xa2677172,
+    0x3c03e4d1, 0x4b04d447, 0xd20d85fd, 0xa50ab56b, 0x35b5a8fa, 0x42b2986c,
+    0xdbbbc9d6, 0xacbcf940, 0x32d86ce3, 0x45df5c75, 0xdcd60dcf, 0xabd13d59,
+    0x26d930ac, 0x51de003a, 0xc8d75180, 0xbfd06116, 0x21b4f4b5, 0x56b3c423,
+    0xcfba9599, 0xb8bda50f, 0x2802b89e, 0x5f058808, 0xc60cd9b2, 0xb10be924,
+    0x2f6f7c87, 0x58684c11, 0xc1611dab, 0xb6662d3d, 0x76dc4190, 0x01db7106,
+    0x98d220bc, 0xefd5102a, 0x71b18589, 0x06b6b51f, 0x9fbfe4a5, 0xe8b8d433,
+    0x7807c9a2, 0x0f00f934, 0x9609a88e, 0xe10e9818, 0x7f6a0dbb, 0x086d3d2d,
+    0x91646c97, 0xe6635c01, 0x6b6b51f4, 0x1c6c6162, 0x856530d8, 0xf262004e,
+    0x6c0695ed, 0x1b01a57b, 0x8208f4c1, 0xf50fc457, 0x65b0d9c6, 0x12b7e950,
+    0x8bbeb8ea, 0xfcb9887c, 0x62dd1ddf, 0x15da2d49, 0x8cd37cf3, 0xfbd44c65,
+    0x4db26158, 0x3ab551ce, 0xa3bc0074, 0xd4bb30e2, 0x4adfa541, 0x3dd895d7,
+    0xa4d1c46d, 0xd3d6f4fb, 0x4369e96a, 0x346ed9fc, 0xad678846, 0xda60b8d0,
+    0x44042d73, 0x33031de5, 0xaa0a4c5f, 0xdd0d7cc9, 0x5005713c, 0x270241aa,
+    0xbe0b1010, 0xc90c2086, 0x5768b525, 0x206f85b3, 0xb966d409, 0xce61e49f,
+    0x5edef90e, 0x29d9c998, 0xb0d09822, 0xc7d7a8b4, 0x59b33d17, 0x2eb40d81,
+    0xb7bd5c3b, 0xc0ba6cad, 0xedb88320, 0x9abfb3b6, 0x03b6e20c, 0x74b1d29a,
+    0xead54739, 0x9dd277af, 0x04db2615, 0x73dc1683, 0xe3630b12, 0x94643b84,
+    0x0d6d6a3e, 0x7a6a5aa8, 0xe40ecf0b, 0x9309ff9d, 0x0a00ae27, 0x7d079eb1,
+    0xf00f9344, 0x8708a3d2, 0x1e01f268, 0x6906c2fe, 0xf762575d, 0x806567cb,
+    0x196c3671, 0x6e6b06e7, 0xfed41b76, 0x89d32be0, 0x10da7a5a, 0x67dd4acc,
+    0xf9b9df6f, 0x8ebeeff9, 0x17b7be43, 0x60b08ed5, 0xd6d6a3e8, 0xa1d1937e,
+    0x38d8c2c4, 0x4fdff252, 0xd1bb67f1, 0xa6bc5767, 0x3fb506dd, 0x48b2364b,
+    0xd80d2bda, 0xaf0a1b4c, 0x36034af6, 0x41047a60, 0xdf60efc3, 0xa867df55,
+    0x316e8eef, 0x4669be79, 0xcb61b38c, 0xbc66831a, 0x256fd2a0, 0x5268e236,
+    0xcc0c7795, 0xbb0b4703, 0x220216b9, 0x5505262f, 0xc5ba3bbe, 0xb2bd0b28,
+    0x2bb45a92, 0x5cb36a04, 0xc2d7ffa7, 0xb5d0cf31, 0x2cd99e8b, 0x5bdeae1d,
+    0x9b64c2b0, 0xec63f226, 0x756aa39c, 0x026d930a, 0x9c0906a9, 0xeb0e363f,
+    0x72076785, 0x05005713, 0x95bf4a82, 0xe2b87a14, 0x7bb12bae, 0x0cb61b38,
+    0x92d28e9b, 0xe5d5be0d, 0x7cdcefb7, 0x0bdbdf21, 0x86d3d2d4, 0xf1d4e242,
+    0x68ddb3f8, 0x1fda836e, 0x81be16cd, 0xf6b9265b, 0x6fb077e1, 0x18b74777,
+    0x88085ae6, 0xff0f6a70, 0x66063bca, 0x11010b5c, 0x8f659eff, 0xf862ae69,
+    0x616bffd3, 0x166ccf45, 0xa00ae278, 0xd70dd2ee, 0x4e048354, 0x3903b3c2,
+    0xa7672661, 0xd06016f7, 0x4969474d, 0x3e6e77db, 0xaed16a4a, 0xd9d65adc,
+    0x40df0b66, 0x37d83bf0, 0xa9bcae53, 0xdebb9ec5, 0x47b2cf7f, 0x30b5ffe9,
+    0xbdbdf21c, 0xcabac28a, 0x53b39330, 0x24b4a3a6, 0xbad03605, 0xcdd70693,
+    0x54de5729, 0x23d967bf, 0xb3667a2e, 0xc4614ab8, 0x5d681b02, 0x2a6f2b94,
+    0xb40bbe37, 0xc30c8ea1, 0x5a05df1b, 0x2d02ef8d
+};
+
+ULONG32
+RtlComputeCrc32_k8(
+    ULONG32 PartialCrc,
+    PUCHAR Buffer,
+    ULONG Length
+    )
+{
+    ULONG32 Crc;
+    ULONG i;
+
+    //RTL_PAGED_CODE ();
+    PAGED_CODE ();
+
+    Crc = PartialCrc ^ 0xffffffffL;
+
+    for (i = 0; i < Length; i++) {
+        Crc = RtlCrc32Table [(Crc ^ Buffer [ i ]) & 0xff] ^ (Crc >> 8);
+    }
+
+    return (Crc ^ 0xffffffffL);
+}
+
+
+ULONGLONG
+KeQueryUnbiasedInterruptTime_k8()
+{
+    LARGE_INTEGER currentTime;
+    ULONGLONG unbiasedTime = 0;
+
+    // Use KeQuerySystemTime to get the system time.
+    KeQuerySystemTime(&currentTime);
+
+    // Convert the system time to 100-nanosecond intervals.
+    unbiasedTime = currentTime.QuadPart;
+
+    return unbiasedTime;
+}
+
+
+int BinarySearch(const void* key, const void* base, size_t nitems, size_t size, int (__cdecl *compar)(const void*, const void*))
+{
+    int low = 0;
+    int high = nitems - 1;
+    const char* b = (const char*)base;
+
+    while (low <= high)
+    {
+        int mid = (low + high) / 2;
+        const char* p = b + mid * size;
+        int comparison = compar(key, p);
+
+        if (comparison == 0)
+            return mid; // Key found at index mid.
+        else if (comparison < 0)
+            high = mid - 1;
+        else
+            low = mid + 1;
+    }
+
+    return -1; // Key not found.
+}
+
+PVOID
+bsearch_k8(
+    const void *key,
+    const void *base,
+    size_t nitems,
+    size_t size,
+    int (__cdecl *compar)(const void *, const void *)
+) {
+    return (PVOID)BinarySearch(key, base, nitems, size, compar);
+}
 
 
 WCHAR
@@ -2578,8 +2696,993 @@ RtlDowncaseUnicodeChar_k8(
     IN WCHAR SourceCharacter
     )
 {
-	return (WCHAR)tolower(SourceCharacter);
+	return (WCHAR)towlower(SourceCharacter);
 }
+
+
+NTSTATUS 
+NTAPI
+RtlUnicodeToUTF8N_k8(
+	PCHAR  UTF8StringDestination,
+	ULONG  UTF8StringMaxByteCount,
+	PULONG UTF8StringActualByteCount,
+	PCWCH  UnicodeStringSource,
+	ULONG  UnicodeStringByteCount
+	)
+{    
+    NTSTATUS status;
+    ULONG i;
+    ULONG written;
+    ULONG ch;
+    ULONG utf8_ch[4];
+    ULONG utf8_ch_len;
+
+    if (!UnicodeStringSource)
+        return STATUS_INVALID_PARAMETER_4;
+    if (!UTF8StringActualByteCount)
+        return STATUS_INVALID_PARAMETER;
+    if (UTF8StringDestination && UnicodeStringByteCount % sizeof(WCHAR))
+        return STATUS_INVALID_PARAMETER_5;
+
+    written = 0;
+    status = STATUS_SUCCESS;
+
+    for (i = 0; i < UnicodeStringByteCount / sizeof(WCHAR); i++) {
+        /* decode UTF-16 into ch */
+        ch = UnicodeStringSource[i];
+        if (ch >= 0xdc00 && ch <= 0xdfff) {
+            ch = 0xfffd;
+            status = STATUS_SOME_NOT_MAPPED;
+        } else if (ch >= 0xd800 && ch <= 0xdbff) {
+            if (i + 1 < UnicodeStringByteCount / sizeof(WCHAR)) {
+                ch -= 0xd800;
+                ch <<= 10;
+                if (UnicodeStringSource[i + 1] >= 0xdc00 && UnicodeStringSource[i + 1] <= 0xdfff) {
+                    ch |= UnicodeStringSource[i + 1] - 0xdc00;
+                    ch += 0x010000;
+                    i++;
+                } else {
+                    ch = 0xfffd;
+                    status = STATUS_SOME_NOT_MAPPED;
+                }
+            } else {
+                ch = 0xfffd;
+                status = STATUS_SOME_NOT_MAPPED;
+            }
+        }
+
+        /* encode ch as UTF-8 */
+        assert(ch <= 0x10ffff);
+        if (ch < 0x80) {
+            utf8_ch[0] = ch & 0x7f;
+            utf8_ch_len = 1;
+        } else if (ch < 0x800) {
+            utf8_ch[0] = 0xc0 | (ch >>  6 & 0x1f);
+            utf8_ch[1] = 0x80 | (ch >>  0 & 0x3f);
+            utf8_ch_len = 2;
+        } else if (ch < 0x10000) {
+            utf8_ch[0] = 0xe0 | (ch >> 12 & 0x0f);
+            utf8_ch[1] = 0x80 | (ch >>  6 & 0x3f);
+            utf8_ch[2] = 0x80 | (ch >>  0 & 0x3f);
+            utf8_ch_len = 3;
+        } else if (ch < 0x200000) {
+            utf8_ch[0] = 0xf0 | (ch >> 18 & 0x07);
+            utf8_ch[1] = 0x80 | (ch >> 12 & 0x3f);
+            utf8_ch[2] = 0x80 | (ch >>  6 & 0x3f);
+            utf8_ch[3] = 0x80 | (ch >>  0 & 0x3f);
+            utf8_ch_len = 4;
+        }
+
+        if (!UTF8StringDestination) {
+            written += utf8_ch_len;
+            continue;
+        }
+
+        if (UTF8StringMaxByteCount >= utf8_ch_len) {
+            memcpy(UTF8StringDestination, utf8_ch, utf8_ch_len);
+            UTF8StringDestination += utf8_ch_len;
+            UTF8StringMaxByteCount -= utf8_ch_len;
+            written += utf8_ch_len;
+        } else {
+            UTF8StringMaxByteCount = 0;
+            status = STATUS_BUFFER_TOO_SMALL;
+        }
+    }
+
+    *UTF8StringActualByteCount = written;
+    return status;
+}
+
+
+
+NTSTATUS
+KdChangeOption_k8(
+  KD_OPTION Option,
+  ULONG     InBufferBytes,
+  PVOID     InBuffer,
+  ULONG     OutBufferBytes,
+  PVOID     OutBuffer,
+  PULONG    OutBufferNeeded
+  )
+{
+	return STATUS_SUCCESS;
+}
+
+
+
+//
+// Define the pool move threshold value.
+//
+
+#define POOL_MOVE_THRESHOLD 511
+
+
+//
+// The maximum amount to try to Probe and Lock is 14 pages, this
+// way it always fits in a 16 page allocation.
+//
+
+#define MAX_LOCK_SIZE ((ULONG)(14 * PAGE_SIZE))
+
+//
+// The maximum to move in a single block is 64k bytes.
+//
+
+#define MAX_MOVE_SIZE (LONG)0x10000
+
+
+#define COPY_STACK_SIZE 64
+
+
+ULONG
+MiGetExceptionInfo (
+    IN PEXCEPTION_POINTERS ExceptionPointers,
+    IN OUT PLOGICAL ExceptionAddressConfirmed,
+    IN OUT PULONG_PTR BadVa
+    )
+
+/*++
+
+Routine Description:
+
+    This routine examines a exception record and extracts the virtual
+    address of an access violation, guard page violation, or in-page error.
+
+Arguments:
+
+    ExceptionPointers - Supplies a pointer to the exception record.
+
+    ExceptionAddressConfirmed - Receives TRUE if the exception address was
+                                reliably detected, FALSE if not.
+
+    BadVa - Receives the virtual address which caused the access violation.
+
+Return Value:
+
+    EXECUTE_EXCEPTION_HANDLER
+
+--*/
+
+{
+    PEXCEPTION_RECORD ExceptionRecord;
+
+    PAGED_CODE();
+
+    //
+    // If the exception code is an access violation, guard page violation,
+    // or an in-page read error, then return the faulting address. Otherwise.
+    // return a special address value.
+    //
+
+    *ExceptionAddressConfirmed = FALSE;
+
+    ExceptionRecord = ExceptionPointers->ExceptionRecord;
+
+    if ((ExceptionRecord->ExceptionCode == STATUS_ACCESS_VIOLATION) ||
+        (ExceptionRecord->ExceptionCode == STATUS_GUARD_PAGE_VIOLATION) ||
+        (ExceptionRecord->ExceptionCode == STATUS_IN_PAGE_ERROR)) {
+
+        //
+        // The virtual address which caused the exception is the 2nd
+        // parameter in the exception information array.
+        //
+        // The number of parameters will be zero if an exception handler
+        // above us (like the one in MmProbeAndLockPages) caught the
+        // original exception and subsequently just raised status.
+        // This means the number of bytes copied is zero.
+        //
+
+        if (ExceptionRecord->NumberParameters > 1) {
+            *ExceptionAddressConfirmed = TRUE;
+            *BadVa = ExceptionRecord->ExceptionInformation[1];
+        }
+    }
+
+    return EXCEPTION_EXECUTE_HANDLER;
+}
+
+
+
+NTSTATUS
+MiDoMappedCopy (
+    IN PEPROCESS FromProcess,
+    IN PVOID *FromAddress,
+    IN PEPROCESS ToProcess,
+    OUT PVOID ToAddress,
+    IN SIZE_T BufferSize,
+    IN KPROCESSOR_MODE PreviousMode,
+    OUT PSIZE_T NumberOfBytesRead
+    )
+
+/*++
+
+Routine Description:
+
+    This function copies the specified address range from the specified
+    process into the specified address range of the current process.
+
+Arguments:
+
+     FromProcess - Supplies an open handle to a process object.
+
+     FromAddress - Supplies the base address in the specified process
+                   to be read.
+
+     ToProcess - Supplies an open handle to a process object.
+
+     ToAddress - Supplies the address of a buffer which receives the
+                 contents from the specified process address space.
+
+     BufferSize - Supplies the requested number of bytes to read from
+                  the specified process.
+
+     PreviousMode - Supplies the previous processor mode.
+
+     NumberOfBytesRead - Receives the actual number of bytes
+                         transferred into the specified buffer.
+
+Return Value:
+
+    NTSTATUS.
+
+--*/
+
+{
+    PRKAPC_STATE2 ApcState = NULL;
+    SIZE_T AmountToMove;
+    ULONG_PTR BadVa;
+    LOGICAL Moving;
+    LOGICAL Probing;
+    LOGICAL LockedMdlPages;
+    PVOID *InVa;
+    SIZE_T LeftToMove;
+    PVOID MappedAddress;
+    SIZE_T MaximumMoved;
+    PMDL Mdl;
+    PFN_NUMBER MdlHack[(sizeof(MDL)/sizeof(PFN_NUMBER)) + (MAX_LOCK_SIZE >> PAGE_SHIFT) + 1];
+    PVOID OutVa;
+    LOGICAL MappingFailed;
+    LOGICAL ExceptionAddressConfirmed;
+
+    PAGED_CODE();
+
+    MappingFailed = FALSE;
+
+    InVa = FromAddress;
+    OutVa = ToAddress;
+
+    MaximumMoved = MAX_LOCK_SIZE;
+    if (BufferSize <= MAX_LOCK_SIZE) {
+        MaximumMoved = BufferSize;
+    }
+
+    Mdl = (PMDL)&MdlHack[0];
+
+    //
+    // Map the data into the system part of the address space, then copy it.
+    //
+
+    LeftToMove = BufferSize;
+    AmountToMove = MaximumMoved;
+
+    Probing = FALSE;
+
+    //
+    // Initializing BadVa & ExceptionAddressConfirmed is not needed for
+    // correctness but without it the compiler cannot compile this code
+    // W4 to check for use of uninitialized variables.
+    //
+
+    BadVa = 0;
+    ExceptionAddressConfirmed = FALSE;
+
+    while (LeftToMove > 0) {
+
+        if (LeftToMove < AmountToMove) {
+
+            //
+            // Set to move the remaining bytes.
+            //
+
+            AmountToMove = LeftToMove;
+        }
+
+        KeStackAttachProcess (&FromProcess->Pcb, ApcState);
+
+        MappedAddress = NULL;
+        LockedMdlPages = FALSE;
+        Moving = FALSE;
+        ASSERT (Probing == FALSE);
+
+        //
+        // We may be touching a user's memory which could be invalid,
+        // declare an exception handler.
+        //
+
+  //      try {
+
+            //
+            // Probe to make sure that the specified buffer is accessible in
+            // the target process.
+            //
+
+            if ((InVa == FromAddress) && (PreviousMode != KernelMode)){
+                Probing = TRUE;
+                ProbeForRead (FromAddress, BufferSize, sizeof(CHAR));
+                Probing = FALSE;
+            }
+
+            //
+            // Initialize MDL for request.
+            //
+
+            MmInitializeMdl (Mdl, (PVOID)InVa, AmountToMove);
+
+            MmProbeAndLockPages (Mdl, PreviousMode, IoReadAccess);
+
+            LockedMdlPages = TRUE;
+
+            MappedAddress = MmMapLockedPagesSpecifyCache (Mdl,
+                                                          KernelMode,
+                                                          MmCached,
+                                                          NULL,
+                                                          FALSE,
+                                                          HighPagePriority);
+
+            if (MappedAddress == NULL) {
+                MappingFailed = TRUE;
+                ExRaiseStatus(STATUS_INSUFFICIENT_RESOURCES);
+            }
+
+            //
+            // Deattach from the FromProcess and attach to the ToProcess.
+            //
+
+            KeUnstackDetachProcess (ApcState);
+            KeStackAttachProcess (&ToProcess->Pcb, ApcState);
+
+            //
+            // Now operating in the context of the ToProcess.
+            //
+            if ((InVa == FromAddress) && (PreviousMode != KernelMode)){
+                Probing = TRUE;
+                ProbeForWrite (ToAddress, BufferSize, sizeof(CHAR));
+                Probing = FALSE;
+            }
+
+            Moving = TRUE;
+            RtlCopyMemory (OutVa, MappedAddress, AmountToMove);
+/*
+        } except (MiGetExceptionInfo (GetExceptionInformation(),
+                                      &ExceptionAddressConfirmed,
+                                      &BadVa)) {
+
+
+            //
+            // If an exception occurs during the move operation or probe,
+            // return the exception code as the status value.
+            //
+
+            KeUnstackDetachProcess (ApcState);
+
+            if (MappedAddress != NULL) {
+                MmUnmapLockedPages (MappedAddress, Mdl);
+            }
+            if (LockedMdlPages == TRUE) {
+                MmUnlockPages (Mdl);
+            }
+
+            if (GetExceptionCode() == STATUS_WORKING_SET_QUOTA) {
+                return STATUS_WORKING_SET_QUOTA;
+            }
+
+            if ((Probing == TRUE) || (MappingFailed == TRUE)) {
+                return GetExceptionCode();
+
+            }
+
+            //
+            // If the failure occurred during the move operation, determine
+            // which move failed, and calculate the number of bytes
+            // actually moved.
+            //
+
+            *NumberOfBytesRead = BufferSize - LeftToMove;
+
+            if (Moving == TRUE) {
+                if (ExceptionAddressConfirmed == TRUE) {
+                    *NumberOfBytesRead = (SIZE_T)((ULONG_PTR)BadVa - (ULONG_PTR)FromAddress);
+                }
+            }
+
+            return STATUS_PARTIAL_COPY;
+        }
+*/
+
+        KeUnstackDetachProcess (ApcState);
+
+        MmUnmapLockedPages (MappedAddress, Mdl);
+        MmUnlockPages (Mdl);
+
+        LeftToMove -= AmountToMove;
+        *InVa = (PVOID)((ULONG_PTR)InVa + AmountToMove);
+        OutVa = (PVOID)((ULONG_PTR)OutVa + AmountToMove);
+    }
+
+    //
+    // Set number of bytes moved.
+    //
+
+    *NumberOfBytesRead = BufferSize;
+    return STATUS_SUCCESS;
+}
+
+
+NTSTATUS
+MiDoPoolCopy (
+     IN PEPROCESS FromProcess,
+     IN PVOID *FromAddress,
+     IN PEPROCESS ToProcess,
+     OUT PVOID ToAddress,
+     IN SIZE_T BufferSize,
+     IN KPROCESSOR_MODE PreviousMode,
+     OUT PSIZE_T NumberOfBytesRead
+     )
+
+/*++
+
+Routine Description:
+
+    This function copies the specified address range from the specified
+    process into the specified address range of the current process.
+
+Arguments:
+
+     ProcessHandle - Supplies an open handle to a process object.
+
+     BaseAddress - Supplies the base address in the specified process
+                   to be read.
+
+     Buffer - Supplies the address of a buffer which receives the
+              contents from the specified process address space.
+
+     BufferSize - Supplies the requested number of bytes to read from
+                  the specified process.
+
+     PreviousMode - Supplies the previous processor mode.
+
+     NumberOfBytesRead - Receives the actual number of bytes
+                         transferred into the specified buffer.
+
+Return Value:
+
+    NTSTATUS.
+
+--*/
+
+{
+    PRKAPC_STATE2 ApcState = NULL;
+    SIZE_T AmountToMove;
+    LOGICAL ExceptionAddressConfirmed;
+    ULONG_PTR BadVa;
+    PEPROCESS CurrentProcess;
+    LOGICAL Moving;
+    LOGICAL Probing;
+    PVOID *InVa;
+    SIZE_T LeftToMove;
+    SIZE_T MaximumMoved;
+    PVOID OutVa;
+    PVOID PoolArea;
+    LONGLONG StackArray[COPY_STACK_SIZE];
+    ULONG FreePool;
+
+    PAGED_CODE();
+
+    ASSERT (BufferSize != 0);
+
+    //
+    // Get the address of the current process object and initialize copy
+    // parameters.
+    //
+
+    CurrentProcess = PsGetCurrentProcess();
+
+    InVa = FromAddress;
+    OutVa = ToAddress;
+
+    //
+    // Allocate non-paged memory to copy in and out of.
+    //
+
+    MaximumMoved = MAX_MOVE_SIZE;
+    if (BufferSize <= MAX_MOVE_SIZE) {
+        MaximumMoved = BufferSize;
+    }
+
+    FreePool = FALSE;
+    if (BufferSize <= sizeof(StackArray)) {
+        PoolArea = (PVOID)&StackArray[0];
+    } else {
+        do {
+            PoolArea = ExAllocatePoolWithTag (NonPagedPool, MaximumMoved, 'wRmM');
+            if (PoolArea != NULL) {
+                FreePool = TRUE;
+                break;
+            }
+
+            MaximumMoved = MaximumMoved >> 1;
+            if (MaximumMoved <= sizeof(StackArray)) {
+                PoolArea = (PVOID)&StackArray[0];
+                break;
+            }
+        } while (TRUE);
+    }
+
+    //
+    // Initializing BadVa & ExceptionAddressConfirmed is not needed for
+    // correctness but without it the compiler cannot compile this code
+    // W4 to check for use of uninitialized variables.
+    //
+
+    BadVa = 0;
+    ExceptionAddressConfirmed = FALSE;
+
+    //
+    // Copy the data into pool, then copy back into the ToProcess.
+    //
+
+    LeftToMove = BufferSize;
+    AmountToMove = MaximumMoved;
+    Probing = FALSE;
+
+    while (LeftToMove > 0) {
+
+        if (LeftToMove < AmountToMove) {
+
+            //
+            // Set to move the remaining bytes.
+            //
+
+            AmountToMove = LeftToMove;
+        }
+
+        KeStackAttachProcess (&FromProcess->Pcb, ApcState);
+
+        Moving = FALSE;
+        ASSERT (Probing == FALSE);
+
+        //
+        // We may be touching a user's memory which could be invalid,
+        // declare an exception handler.
+        //
+
+        //try {
+
+            //
+            // Probe to make sure that the specified buffer is accessible in
+            // the target process.
+            //
+
+            if ((InVa == FromAddress) && (PreviousMode != KernelMode)){
+                Probing = TRUE;
+                ProbeForRead (FromAddress, BufferSize, sizeof(CHAR));
+                Probing = FALSE;
+            }
+
+            RtlCopyMemory (PoolArea, InVa, AmountToMove);
+
+            KeUnstackDetachProcess (ApcState);
+
+            KeStackAttachProcess (&ToProcess->Pcb, ApcState);
+
+            //
+            // Now operating in the context of the ToProcess.
+            //
+
+            if ((InVa == FromAddress) && (PreviousMode != KernelMode)){
+                Probing = TRUE;
+                ProbeForWrite (ToAddress, BufferSize, sizeof(CHAR));
+                Probing = FALSE;
+            }
+
+            Moving = TRUE;
+
+            RtlCopyMemory (OutVa, PoolArea, AmountToMove);
+/*
+        } except (MiGetExceptionInfo (GetExceptionInformation(),
+                                      &ExceptionAddressConfirmed,
+                                      &BadVa)) {
+
+            //
+            // If an exception occurs during the move operation or probe,
+            // return the exception code as the status value.
+            //
+
+            KeUnstackDetachProcess (ApcState);
+
+            if (FreePool) {
+                ExFreePool (PoolArea);
+            }
+            if (Probing == TRUE) {
+                return GetExceptionCode();
+
+            }
+
+            //
+            // If the failure occurred during the move operation, determine
+            // which move failed, and calculate the number of bytes
+            // actually moved.
+            //
+
+            *NumberOfBytesRead = BufferSize - LeftToMove;
+
+            if (Moving == TRUE) {
+
+                //
+                // The failure occurred writing the data.
+                //
+
+                if (ExceptionAddressConfirmed == TRUE) {
+                    *NumberOfBytesRead = (SIZE_T)((ULONG_PTR)(BadVa - (ULONG_PTR)FromAddress));
+                }
+
+            }
+
+            return STATUS_PARTIAL_COPY;
+        }*/
+
+        KeUnstackDetachProcess (ApcState);
+
+        LeftToMove -= AmountToMove;
+        *InVa = (PVOID)((ULONG_PTR)InVa + AmountToMove);
+        OutVa = (PVOID)((ULONG_PTR)OutVa + AmountToMove);
+    }
+
+    if (FreePool) {
+        ExFreePool (PoolArea);
+    }
+
+    //
+    // Set number of bytes moved.
+    //
+
+    *NumberOfBytesRead = BufferSize;
+    return STATUS_SUCCESS;
+}
+
+
+// Needed for latest Vista ksecdd.sys
+
+NTSTATUS
+MmCopyVirtualMemory_k8(
+    IN PEPROCESS FromProcess,
+    IN PVOID *FromAddress,
+    IN PEPROCESS ToProcess,
+    OUT PVOID ToAddress,
+    IN SIZE_T BufferSize,
+    IN KPROCESSOR_MODE PreviousMode,
+    OUT PSIZE_T NumberOfBytesCopied
+    )
+{
+    NTSTATUS Status;
+    PEPROCESS ProcessToLock;
+
+    if (BufferSize == 0) {
+        ASSERT (FALSE);         // No one should call with a zero size.
+        return STATUS_SUCCESS;
+    }
+
+    ProcessToLock = FromProcess;
+    if (FromProcess == PsGetCurrentProcess()) {
+        ProcessToLock = ToProcess;
+    }
+
+    //
+    // Make sure the process still has an address space.
+    //
+
+    if (ExAcquireRundownProtection (&ProcessToLock->RundownProtect) == FALSE) {
+        return STATUS_PROCESS_IS_TERMINATING;
+    }
+
+    //
+    // If the buffer size is greater than the pool move threshold,
+    // then attempt to write the memory via direct mapping.
+    //
+
+    if (BufferSize > POOL_MOVE_THRESHOLD) {
+        Status = MiDoMappedCopy(FromProcess,
+                                FromAddress,
+                                ToProcess,
+                                ToAddress,
+                                BufferSize,
+                                PreviousMode,
+                                NumberOfBytesCopied);
+
+        //
+        // If the completion status is not a working quota problem,
+        // then finish the service. Otherwise, attempt to write the
+        // memory through nonpaged pool.
+        //
+
+        if (Status != STATUS_WORKING_SET_QUOTA) {
+            goto CompleteService;
+        }
+
+        *NumberOfBytesCopied = 0;
+    }
+
+    //
+    // There was not enough working set quota to write the memory via
+    // direct mapping or the size of the write was below the pool move
+    // threshold. Attempt to write the specified memory through nonpaged
+    // pool.
+    //
+
+    Status = MiDoPoolCopy(FromProcess,
+                          FromAddress,
+                          ToProcess,
+                          ToAddress,
+                          BufferSize,
+                          PreviousMode,
+                          NumberOfBytesCopied);
+
+    //
+    // Dereference the target process.
+    //
+
+CompleteService:
+
+    //
+    // Indicate that the vm operation is complete.
+    //
+
+    ExReleaseRundownProtection (&ProcessToLock->RundownProtect);
+
+    return Status;
+}
+
+
+
+
+// USBSTOR.sys 6.2 missing import 
+// BOOLEAN
+// IoTryQueueWorkItem_k8(
+//   PIO_WORKITEM            IoWorkItem,
+//   PIO_WORKITEM_ROUTINE_EX WorkerRoutine,
+//   WORK_QUEUE_TYPE         QueueType,
+//   PVOID                   Context
+// ){
+// 	return STATUS_SUCCESS;
+// }
+
+// Extra context for bridging EX callback to old-style work item.
+typedef struct _K8_WORKITEM_THUNK
+{
+    PIO_WORKITEM_ROUTINE_EX OriginalRoutine;
+    PVOID                   OriginalContext;
+    PIO_WORKITEM            WorkItem;
+} K8_WORKITEM_THUNK, *PK8_WORKITEM_THUNK;
+
+// This runs as old-style work item: DeviceObject + Context.
+VOID
+NTAPI
+WorkItemThunkRoutine_k8(
+    PDEVICE_OBJECT DeviceObject,
+    PVOID          Context
+)
+{
+    PK8_WORKITEM_THUNK thunk = (PK8_WORKITEM_THUNK)Context;
+
+    PIO_WORKITEM_ROUTINE_EX originalRoutine = thunk->OriginalRoutine;
+    PVOID originalContext = thunk->OriginalContext;
+    PIO_WORKITEM workItem = thunk->WorkItem;
+
+    // Free our bridge context first.
+    ExFreePool(thunk);
+
+    // For USBSTOR.sys 6.2 running on XP,
+    // IoObject is actually a PDEVICE_OBJECT,
+    // so we can just pass DeviceObject as IoObject.
+    originalRoutine(
+        (PVOID)DeviceObject,  // IoObject
+        originalContext,      // Context
+        workItem              // IoWorkItem
+    );
+}
+
+
+BOOLEAN
+NTAPI
+IoTryQueueWorkItem_k8(
+    PIO_WORKITEM            IoWorkItem,
+    PIO_WORKITEM_ROUTINE_EX WorkerRoutine,
+    WORK_QUEUE_TYPE         QueueType,
+    PVOID                   Context
+)
+{
+    PK8_WORKITEM_THUNK thunk;
+
+    thunk = (PK8_WORKITEM_THUNK)ExAllocatePoolWithTag(
+        NonPagedPool,
+        sizeof(K8_WORKITEM_THUNK),
+        'krn8'        // any tag
+    );
+
+    if (thunk == NULL)
+    {
+        return FALSE;
+    }
+
+    thunk->OriginalRoutine  = WorkerRoutine;
+    thunk->OriginalContext  = Context;
+    thunk->WorkItem         = IoWorkItem;
+
+    // On XP/2003 IoQueueWorkItem always succeeds
+    // (no shutdown-fail semantic like IoTryQueueWorkItem).
+    IoQueueWorkItem( IoWorkItem, WorkItemThunkRoutine_k8, QueueType, thunk );
+
+    return TRUE;
+}
+
+
+
+// acpiex.sys 6.3 missing import
+
+// Adapted NcReplaceFileObjectNameAlternate from nccompat.c as IoReplaceFileObjectName custom implementation
+
+#define NC_FILE_NAME_TAG              'NCfn' // Tag for strings which are allocated for file names in file objects
+
+NTSTATUS
+IoReplaceFileObjectName_k8(
+  PFILE_OBJECT FileObject,
+  PWSTR        NewFileName,
+  USHORT       FileNameLength
+)
+/*++
+
+Routine Description:
+
+    This routine is used to replace a file object's name with a provided
+    name. On Win7 and forward IoReplaceFileObjectName will be used.
+    If this function is used and verifier is enabled on pre Win7 machines
+    the filter will fail to unload due to a false positive on the leaked
+    pool test.
+
+Arguments:
+
+    FileObject - Pointer to file object whose name is to be replaced.
+
+    NewFileName - Pointer to buffer containing the new name.
+
+    FileNameLength - Length of the new name in bytes.
+
+Return Value:
+
+    STATUS_INSUFFICIENT_RESOURCES - No memory to allocate the new buffer.
+
+    STATUS_SUCCESS otherwise.
+
+--*/
+{  
+    PWSTR Buffer;
+    PUNICODE_STRING FileName;
+    USHORT NewMaxLength;
+
+    PAGED_CODE();
+
+    FileName = &FileObject->FileName;
+
+    //
+    //  If the new name fits inside the current buffer we simply copy it over
+    //  instead of allocating a new buffer (and keep the MaximumLength value
+    //  the same).
+    //
+
+    if (FileNameLength <= FileName->MaximumLength) {
+        // If the new name fits inside the current buffer, copy it over.
+        RtlZeroMemory(FileName->Buffer, FileName->MaximumLength);
+        RtlCopyMemory(FileName->Buffer, NewFileName, FileNameLength);
+        FileName->Length = FileNameLength;
+
+        return STATUS_SUCCESS;
+    }
+
+    NewMaxLength = FileNameLength;
+
+    Buffer = (PWSTR)ExAllocatePoolWithTag( PagedPool,
+                                    NewMaxLength,
+                                    NC_FILE_NAME_TAG );
+
+    if (!Buffer) {
+
+        return STATUS_INSUFFICIENT_RESOURCES;
+    }
+
+    if (FileName->Buffer != NULL) {
+
+        ExFreePool(FileName->Buffer);
+    }
+
+    FileName->Buffer = Buffer;
+    FileName->MaximumLength = NewMaxLength;
+
+    RtlZeroMemory(FileName->Buffer, FileName->MaximumLength);
+    RtlCopyMemory(FileName->Buffer, NewFileName, FileNameLength);
+    FileName->Length = FileNameLength;
+
+    return STATUS_SUCCESS;
+}
+
+
+
+
+// ACPITIME.sys 6.2 missing import
+
+int PopFixedWakeSourceMask;
+
+BOOLEAN
+PoSetFixedWakeSource_k8(
+	INT Result
+	)
+{
+	PopFixedWakeSourceMask |= Result;
+	return STATUS_SUCCESS;
+}
+BOOLEAN
+KxTryToAcquireSpinLock (
+    PKSPIN_LOCK SpinLock
+    )
+{
+
+    //
+    // Try to acquire the specified spin lock at the current IRQL.
+    //
+    KIRQL irql;
+
+    // Raise the IRQL to DISPATCH_LEVEL to disable interrupts
+    KeAcquireSpinLock(SpinLock, &irql);
+
+    // At this point, the spin lock has been acquired at DISPATCH_LEVEL IRQL
+    // You can perform your critical section code here
+
+    // To release the spin lock, use KeReleaseSpinLock:
+    // KeReleaseSpinLock(SpinLock, irql);
+
+    return TRUE;
+}
+
+BOOLEAN
+KeTryToAcquireSpinLockAtDpcLevel_k8 (
+    PKSPIN_LOCK SpinLock
+    )
+{
+    //
+    // Try to acquire the specified spin lock at the current IRQL.
+    //
+    return KxTryToAcquireSpinLock(SpinLock);
+}
+
 
 //
 // Runtime Power Management Framework
@@ -2820,6 +3923,22 @@ typedef struct _IO_REPORT_INTERRUPT_ACTIVE_STATE_PARAMETERS {
 } IO_REPORT_INTERRUPT_ACTIVE_STATE_PARAMETERS,
   *PIO_REPORT_INTERRUPT_ACTIVE_STATE_PARAMETERS;
   
+
+
+// RtlNumberOfSetBitsUlongPtr replacement
+
+
+ULONG
+RtlNumberOfSetBitsUlongPtr_k8(
+  ULONG_PTR Target
+) {
+    int Count = 0;
+    while (Target) {
+        Count += Target & 1;
+        Target >>= 1;
+    }
+    return Count;
+}
 VOID
 IoReportInterruptActive (
     PIO_REPORT_INTERRUPT_ACTIVE_STATE_PARAMETERS Parameters
@@ -2858,18 +3977,128 @@ PoFxPowerControl (
 		
 	}
 	
+
+typedef struct _DEVICE_CONTEXT     DEVICE_CONTEXT, *PDEVICE_CONTEXT;
+
+typedef struct _EX_BOOT_DEVICE_REGISTRATION {
+    ULONG Version;
+    PDRIVER_OBJECT DriverObject;
+    PDEVICE_OBJECT DeviceObject;
+    BOOLEAN IsBootDeviceReady;
+    PDEVICE_CONTEXT Context;
+} EX_BOOT_DEVICE_REGISTRATION, *PEX_BOOT_DEVICE_REGISTRATION;
+
+//typedef EX_BOOT_DEVICE_REGISTRATION, *PEX_BOOT_DEVICE_REGISTRATION;
+
+NTSTATUS
+ExRegisterBootDevice_k8(
+    PEX_BOOT_DEVICE_REGISTRATION Registration,
+    PVOID *Handle
+) {
+    return STATUS_SUCCESS;
+}
+
+
+
+NTSTATUS
+KseQueryDeviceFlags_k8(
+	PCWSTR sourceString,
+	PCWSTR destinationString,
+	__int64* result
+) {
+    return STATUS_SUCCESS;
+}
+
+
+/* IDA Pseudo-Code rewritten with ChatGPT*/
+
+
+// Define the ExNumMissingBootDevices variable
+LONG ExNumMissingBootDevices = 0;
+
+BOOLEAN
+ExNotifyBootDeviceRemoval_k8(
+	PULONG pMagicValue
+){
 	
+    ULONG magicValue = 0x504C4552; // 'RELP'
+
+    // Check if the magic value matches
+    if (*pMagicValue != magicValue) {
+        return FALSE;
+    }
+
+    KEVENT ExBootDevicesRemovedEvent;
+    KeInitializeEvent(&ExBootDevicesRemovedEvent, NotificationEvent, FALSE);
+
+    LONG* pCounter1 = (LONG*)(pMagicValue + 1); // Assuming the counter is at offset 4 bytes from the magic value
+    LONG* pCounter2 = &ExNumMissingBootDevices;
+
+    // Increment the counters atomically
+    if (InterlockedIncrement(pCounter1) == 1 && InterlockedIncrement(pCounter2) == 1) {
+        KeSetEvent(&ExBootDevicesRemovedEvent, 0, FALSE);
+    }
+
+    return STATUS_SUCCESS;
+}
+
+
 	
+
+NTSTATUS
+SeLocateProcessImageName_k8(
+    PEPROCESS Process,
+    PUNICODE_STRING *pImageFileName
+    )
+{
+    PUNICODE_STRING imageName = NULL;
 	
+	/*
+		if (Process != NULL)
+		{
+			imageName = (PUNICODE_STRING)ExAllocatePool(NonPagedPool, sizeof(UNICODE_STRING));
+			if (imageName)
+			{
+				RtlInitUnicodeString(imageName, NULL);
+
+				// Get the image name of the process
+				if (GetProcessImageFileName(Process))
+				{
+					// Image name is in imageName
+					if (pImageFileName != NULL)
+					{
+						// Assign the pointer to the image name to the output parameter
+						*pImageFileName = imageName;
+					}
+				}
+				else
+				{
+					// PsGetProcessImageFileName aka GetProcessImageFileName failed
+					ExFreePool(imageName);
+					imageName = NULL;
+				}
+			}
+		}
 	
-/* END NEW section*/
+	imageName = GetProcessImageFileName(Process);
 
-
-
-
-
-
- 
+    return imageName;
+	*/
+	
+	imageName = GetProcessImageFileName(Process);
+/*	
+	if (imageName != NULL) 
+	{
+		*pImageFileName = imageName;
+		return STATUS_SUCCESS;
+	}
+	else
+	{
+		return STATUS_NOT_FOUND;
+	}
+	*/
+	return STATUS_SUCCESS;
+}
 
 
 NTSTATUS
