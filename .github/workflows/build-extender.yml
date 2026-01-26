@@ -247,7 +247,7 @@ jobs:
 
           $map = @(
             @{ name = "xp_x86";       obj = "objfre_WXP_x86";      ver = "5.1_x86" }
-            @{ name = "xp_x64";       obj = "objfre_WNET_amd64";   ver = "5.2_x64" }  # XP x64 je 5.2
+            @{ name = "xp_x64";       obj = "objfre_WNET_amd64";   ver = "5.2_x64" }
             @{ name = "srv2003_x86";  obj = "objfre_WNET_x86";     ver = "5.2_x86" }
             @{ name = "vista_x86";    obj = "objfre_WLH_x86";      ver = "6.0_x86" }
             @{ name = "vista_x64";    obj = "objfre_WLH_amd64";    ver = "6.0_x64" }
@@ -259,27 +259,24 @@ jobs:
           New-Item -ItemType Directory -Force -Path $out | Out-Null
 
           foreach ($cfg in $map) {
-            $name = $cfg.name
+            $name       = $cfg.name
             $objDirName = $cfg.obj
-            $verFolder = $cfg.ver
+            $verFolder  = $cfg.ver
 
-            $dirPath = Get-ChildItem -Path $root -Recurse -Directory -Filter $objDirName -ErrorAction SilentlyContinue |
-                       Select-Object -First 1
-
-            if (-not $dirPath) {
-              Write-Warning "Directory $objDirName not found, skipping $name"
-              continue
-            }
-
-            $ntos = Get-ChildItem -Path $dirPath.FullName -Recurse -Filter "ntoskrn8.sys" -ErrorAction SilentlyContinue |
-                    Select-Object -First 1
-            $stor = Get-ChildItem -Path $dirPath.FullName -Recurse -Filter "storpor8.sys" -ErrorAction SilentlyContinue |
-                    Select-Object -First 1
-            $kern = Get-ChildItem -Path $dirPath.FullName -Recurse -Filter "kernel8.dll" -ErrorAction SilentlyContinue |
+            $ntos = Get-ChildItem -Path $root -Recurse -Filter "ntoskrn8.sys" -ErrorAction SilentlyContinue |
+                    Where-Object { $_.FullName -like "*\$objDirName\*" } |
                     Select-Object -First 1
 
-            if (-not $ntos -and -not $stor) {
-              Write-Warning "No ntoskrn8.sys or storpor8.sys found in $objDirName, skipping $name"
+            $stor = Get-ChildItem -Path $root -Recurse -Filter "storpor8.sys" -ErrorAction SilentlyContinue |
+                    Where-Object { $_.FullName -like "*\$objDirName\*" } |
+                    Select-Object -First 1
+
+            $kern = Get-ChildItem -Path $root -Recurse -Filter "kernel8.dll" -ErrorAction SilentlyContinue |
+                    Where-Object { $_.FullName -like "*\$objDirName\*" } |
+                    Select-Object -First 1
+
+            if (-not $ntos -and -not $stor -and -not $kern) {
+              Write-Warning "No files found in obj dir $objDirName, skipping $name"
               continue
             }
 
@@ -293,7 +290,7 @@ jobs:
               Copy-Item $stor.FullName (Join-Path $destDir "storpor8.sys") -Force
             }
             if ($kern) {
-              Copy-Item $stor.FullName (Join-Path $destDir "kernel8.dll") -Force
+              Copy-Item $kern.FullName (Join-Path $destDir "kernel8.dll") -Force
             }
 
             Write-Host "Collected $name -> $verFolder"
